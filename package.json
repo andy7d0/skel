@@ -3,11 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "rspack build",
-    "check": "biome check --write",
     "dev": "rspack dev",
-    "format": "biome format --write",
-    "preview": "rspack preview"
+    "build": "rspack build",
+    "preview": "rspack preview",
+    "check": "biome check --write",
+    "lint": "oxlint",
+    "format": "biome format --write"
   },
   "dependencies": {
     "react": "^19.2.3",
@@ -20,6 +21,8 @@
     "@rspack/plugin-react-refresh": "^1.6.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "oxlint": "^1.39.0",
+    "oxlint-rspack-plugin": "^1.0.7",
     "react-refresh": "^0.18.0"
   }
 }

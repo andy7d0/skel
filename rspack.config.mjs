@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@rspack/cli';
 import { rspack } from '@rspack/core';
 import { ReactRefreshRspackPlugin } from '@rspack/plugin-react-refresh';
+// import oxlint  from 'unplugin-oxlint/webpack';
+import { OxLintWebpackPlugin } from "oxlint-rspack-plugin";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
@@ -58,10 +60,16 @@ export default defineConfig({
     ],
   },
   plugins: [
+    //oxlint(),
+    new OxLintWebpackPlugin(),
     new rspack.HtmlRspackPlugin({
       template: './index.html',
     }),
     isDev ? new ReactRefreshRspackPlugin() : null,
+    new rspack.CircularDependencyRspackPlugin({
+      failOnError: true,
+      exclude: /node_modules/,
+    })
   ],
   optimization: {
     minimizer: [
