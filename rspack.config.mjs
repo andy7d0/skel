@@ -13,6 +13,11 @@ const targets = ['last 2 versions', '> 0.2%', 'not dead', 'Firefox ESR'];
 
 export default defineConfig({
   context: __dirname,
+  devServer: {
+    host: '127.1.2.1',
+    port: 3000,
+    open: false, // open: ['/my-page', '/another-page']
+  },
   entry: {
     main: './src/main.jsx',
   },
