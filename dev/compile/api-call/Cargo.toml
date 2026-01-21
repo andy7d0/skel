@@ -1,0 +1,26 @@
+[package]
+name = "api-call"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+
+[dependencies]
+hstr = "3.0.4"
+path-utils = "0.1.0"
+serde = "1"
+swc_atoms = "9.0.0"
+swc_core = { version = "55.0.*", features = ["ecma_plugin_transform"] }
+
+[target.'cfg(target_arch = "wasm32")']
+rustflags = [
+  "--cfg=swc_ast_unknown"
+]
+
+# .cargo/config.toml defines few alias to build plugin.
+# cargo build-wasip1 generates wasm32-wasip1 binary
+# cargo build-wasm32 generates wasm32-unknown-unknown binary.

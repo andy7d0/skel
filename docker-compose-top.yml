@@ -1,0 +1,51 @@
+# каждый включаемый файл соответствует одному физическому серверу
+# web-app-docker-compose - в prod - двум  идентичным серверам ext/int app
+# 
+# include:
+#   - path: ./docker-compose.d/web-app-docker-compose.yml
+#     project_directory: .
+
+services:
+  # dev containers runned once
+  # make all volumes owned correctly
+  setup:
+    image: alpine
+    environment:
+      - S_UID=${S_UID}
+      - S_GID=${S_GID}
+      - S_PWD=${PWD}
+    user: ${S_UID}:${S_GID}
+    volumes:
+      - .:/top 
+    command: /bin/sh /top/services/setup.sh
+
+  bun:
+    image: oven/bun:1.3-alpine
+    ports:
+      - ${HOST_LOOPBACK_IP}:3000:3000
+    volumes:
+      - .:/app
+    user: ${S_UID}:${S_GID}
+    init: true
+    working_dir: /app
+    entrypoint: bun run dev
+    depends_on:
+       - setup
+
+
+
+# размещение
+# на сервере СУБД размещается 
+# 1. сама СУБД
+# 2. pg_boundcer
+# 3. pg_notify (если нужно)
+# доступ к СУБД - только по локальному сокету
+# доступ по сети - только к нотификации
+# в среде разработки доступ trust
+# в боевой среде доступ postgres - peer
+#   доступ user_* - trust
+# bouncer - в той же группе, что и постгрес
+# локальный сокет имеет права 770 
+# тогда защита доступа к СУБД обеспечивается ОС
+# по сети защита обеспечивается bouncer
+# 
