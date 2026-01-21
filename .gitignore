@@ -2,10 +2,15 @@
 .DS_Store
 *.local
 *.log*
+.swc/
 
 # Dist
-node_modules
+node_modules/
 dist/
+workarea/
+
+# conf
+compose-env
 
 # Profile
 .rspack-profile-*/
@@ -14,5 +19,4 @@ dist/
 .vscode/*
 !.vscode/extensions.json
 .idea
-
-bun.sublime-workspace
+*.sublime-workspace

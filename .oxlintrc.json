@@ -3,7 +3,12 @@
   "plugins": [
     "unicorn",
     "typescript",
-    "oxc"
+    "oxc",
+    "react",
+    "jsx-a11y",
+    "react-perf",
+    "promise",
+    "import"
   ],
   "categories": {
     "correctness": "error",
@@ -117,7 +122,8 @@
     "unicorn/no-useless-length-check": "warn",
     "unicorn/no-useless-spread": "warn",
     "unicorn/prefer-set-size": "warn",
-    "unicorn/prefer-string-starts-ends-with": "warn"
+    "unicorn/prefer-string-starts-ends-with": "warn",
+    "react/react-in-jsx-scope": "off"
   },
   "settings": {
     "jsx-a11y": {
@@ -131,7 +137,7 @@
     "react": {
       "formComponents": [],
       "linkComponents": [],
-      "version": null
+      "version": "19"
     },
     "jsdoc": {
       "ignorePrivate": false,
@@ -151,8 +157,13 @@
     "builtin": true
     , "browser": true
  },
-  "globals": {},
+  "globals": {
+    "API": "readonly"
+  },
   "ignorePatterns": [
-   "rspack.config.mjs"    
+   "rspack.config.mjs", 
+   "dev/**",
+   "experiments/**",
+   "node_modules/**",
   ]
 }
