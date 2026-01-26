@@ -159,6 +159,18 @@
  },
   "globals": {
     "API": "readonly"
+      , "letIn": "readonly"
+      , "later": "readonly"
+      , "defer": "readonly"
+      , "classes": "readonly"
+      , "applyEx": "readonly"
+      , "range": "readonly"
+      , "DBG": "readonly"
+      , "setter": "readonly"
+      , "cmp": "readonly"
+      , "isPlainObject": "readonly"
+
+      , "ngx": "readonly"
   },
   "ignorePatterns": [
    "rspack.config.mjs", 

@@ -8,6 +8,7 @@ import { ReactRefreshRspackPlugin } from '@rspack/plugin-react-refresh';
 // import oxlint  from 'unplugin-oxlint/webpack';
 //import { OxLintWebpackPlugin } from "oxlint-rspack-plugin";
 import { OxLintWebpackPlugin } from "./dev/compile/oxlint-rspack-plugin/index.js";
+import { RsdoctorRspackPlugin } from '@rsdoctor/rspack-plugin';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = process.env.NODE_ENV === 'development';
@@ -42,18 +43,27 @@ export default defineConfig({
         path: '/',
         middleware: (req, res, next) => {
           if(req.path === '/') return next();
+          if(req.path.startWith('/app')) return next();
           if(req.path.match(/[.]/)) return next();
           res.redirect(302, `/?${req.path}`);
         },
       });
       return middlewares;
-    }
+    },
+    proxy: [
+      {
+        context: ['/app'],
+        target: 'http://web:8088',
+        changeOrigin: true,
+      },
+    ],
   },
   entry: {
     main: './src/client/main.jsx',
   },
   resolve: {
-    extensions: ['...', '.ts', '.tsx', '.jsx'],
+    extensions: ['.js', '.jsx', '.mjs'], //'.ts', '.tsx', 
+    modules: ['node_modules', 'src']
   },
   module: {
     rules: [
@@ -63,14 +73,16 @@ export default defineConfig({
       },
       {
         test: /\.(jsx?|tsx?)$/,
-        exclude: /node_modules[\\/]core-js/,
+        //exclude: /node_modules[\\/]core-js/,
+        include: path.resolve(__dirname,'src/'),
         use: [
           {
             loader: 'builtin:swc-loader',
             /** @type {import('@rspack/core').SwcLoaderOptions} */
             options: {
               env: {
-                mode: 'entry',
+                //mode: 'entry',
+                mode: 'usage',
                 coreJs: '3.47.0',
                 targets
               },
@@ -102,6 +114,10 @@ export default defineConfig({
   },
   plugins: [
     //oxlint(),
+    process.env.RSDOCTOR &&
+      new RsdoctorRspackPlugin({
+        // plugin options
+      }),
     new OxLintWebpackPlugin(),
     new rspack.HtmlRspackPlugin({
       template: './index.html',
@@ -116,8 +132,20 @@ export default defineConfig({
     }),
     new rspack.ProvidePlugin({
       API: [path.resolve(path.join(__dirname, 'src/azlib/api.mjs')), 'API']
+      , letIn: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'letIn']
+      , later: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'later']
+      , defer: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'defer']
+      , classes: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'classes']
+      , applyEx: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'applyEx']
+      , range: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'range']
+      , DBG: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'DBG']
+      , setter: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'setter']
+      , cmp: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'cmp']
+      , isPlainObject: [path.resolve(path.join(__dirname, 'src/azlib/helpers.mjs')), 'isPlainObject']
     }),
-  ],
+
+  ].filter(Boolean),
+
   optimization: {
     minimizer: [
       new rspack.SwcJsMinimizerRspackPlugin(),
@@ -128,5 +156,6 @@ export default defineConfig({
   },
   experiments: {
     css: true,
+    //lazyBarrel: false,
   },
 });

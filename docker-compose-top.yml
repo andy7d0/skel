@@ -1,9 +1,9 @@
 # каждый включаемый файл соответствует одному физическому серверу
 # web-app-docker-compose - в prod - двум  идентичным серверам ext/int app
 # 
-# include:
-#   - path: ./docker-compose.d/web-app-docker-compose.yml
-#     project_directory: .
+include:
+   - path: ./src/app/common/servers/web-app-compose.yml
+     project_directory: .
 
 services:
   # dev containers runned once
@@ -19,6 +19,19 @@ services:
       - .:/top 
     command: /bin/sh /top/services/setup.sh
 
+  curl:
+    image: alpine/curl
+    environment:
+      - S_UID=${S_UID}
+      - S_GID=${S_GID}
+      - S_PWD=${PWD}
+    user: ${S_UID}:${S_GID}
+    volumes:
+      - .:/top 
+    command: /bin/sh
+    depends_on:
+       - setup
+
   bun:
     image: oven/bun:1.3-alpine
     ports:
@@ -31,6 +44,7 @@ services:
     entrypoint: bun run dev
     depends_on:
        - setup
+       - web
 
 
 

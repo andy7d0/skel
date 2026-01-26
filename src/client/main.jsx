@@ -1,16 +1,24 @@
-import _R from "core-js/stable";
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+//import _R from "core-js/stable";
+// eslint-disable-next-line no-unassigned-import
+import "azlib/globals.mjs";
+// eslint-disable-next-line no-unassigned-import
+import "azlib/helpers.mjs";
+// eslint-disable-next-line no-unassigned-import
+import "azlib/date.mjs";
+import {initPeerAndID} from 'azlib/common.mjs' 
+import {StrictMode} from 'react';
+import {createRoot} from 'react-dom/client';
+import App from './App.jsx';
 // eslint-disable-next-line no-unassigned-import
 import './index.css';
 
 import * as gitVersion from 'git-version';
 
 // eslint-disable-next-line no-unused-expressions
-_R;
+//_R;
 
 console.log(API.URL`test`);
+console.log(gitVersion)
 
 if(window.location.pathname === '/' && window.location.search) {
   console.log('need redirect', window.location)
@@ -24,10 +32,15 @@ if(window.location.pathname === '/' && window.location.search) {
   );
 }
 
-console.log(gitVersion)
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);
+initPeerAndID()
+.then(()=>{
+  //console.log([].toSorted())
+  const root = createRoot(document.getElementById('root'));
+  return root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+});
+

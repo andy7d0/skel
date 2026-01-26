@@ -5,4 +5,22 @@
 			"path": "."
 		}
 	]
+	, "build_systems": [
+		{
+			"name": "apply-migration"
+			,"shell_cmd": "./if-nvm.sh yarn apply-migration"
+			, "working_dir": "$project_path"
+			, "file_patterns": "*.ddl,*.doctype.php,*.data.yml"
+		}
+		,
+		{
+			"name": "linter"
+			,"shell_cmd": "~/.bun/bin/bun run lint -f unix"
+			//, "target": "ansi_color_build"
+			//, "syntax": "Packages/ANSIescape/ANSI.sublime-syntax"
+			, "working_dir": "$project_path"
+			//, "line_regex": "^[^:]*:(\\d+):(\\d+):\\s+(.*)"
+			, "file_regex": "^(src/.*?):(\\d+):(\\d+):\\s+(.*)"
+		}
+	]
 }

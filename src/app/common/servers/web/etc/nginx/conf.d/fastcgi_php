@@ -1,0 +1,7 @@
+fastcgi_pass   unix:/var/www/sockets/app.socket;
+fastcgi_param  CALLBACK_ADDR web;
+expires epoch;
+include        fastcgi_params;
+root           /var/www;
+fastcgi_param  SCRIPT_FILENAME  $request_filename;
+#add_header sc $request_filename always;
