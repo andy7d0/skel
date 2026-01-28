@@ -58,7 +58,7 @@ const systemTZOminutes = 3*60;
  */
 
 // eslint-disable-next-line no-extend-native
-Object.defineProperty(String.prototype, 'asDateString', {
+Object.defineProperty(Date.prototype, 'asDateString', {
     enumerable: false,
     get: function () { return this.toISOString().slice(0,10); }
 });

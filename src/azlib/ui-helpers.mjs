@@ -1,10 +1,8 @@
-import {useState,useEffect,createElement, forwardRef, useMemo} from 'react';
+import {useState,useEffect, useMemo, cloneElement} from 'react';
 
-export function renderWithProps(componet,props,...children) {
-  if(typeof componet === "function") {
-    return createElement(componet,props,...children)
-  }
-  return componet;
+export function applyProps(element_or_function, props) {
+  if(typeof element_or_function === "function") return element_or_function(props)
+  return cloneElement(element_or_function, props)
 }
 
 export function isFixedPosition(e) {
@@ -124,15 +122,15 @@ const taStyles = {
   , resize: 'none'
 }
 
-export const AutosizeTextarea = forwardRef((props,ref)=>
-  <div style={{display: "grid", width:"100%"}} className="textarea">
+export function AutosizeTextarea({ref, ...props}) {
+  return <div style={{display: "grid", width:"100%"}} className="textarea">
           <textarea ref={ref} {...props} className=""
             style={{...props.style, ...taStyles}} 
           />
           <pre style={{...props.style, visibility: 'hidden', ...taStyles}}
           >{`${props.value??''} `}</pre>
   </div>
-)
+}
 
 export function asyncStateValue(reducer) {
   return new Promise(resolve=>{

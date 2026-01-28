@@ -1,5 +1,5 @@
 import { Routes, Route} from "react-router-dom"
- 
+
 export default function ExtAppRoutes(){
   return <Routes>
   	<Route path="ext_app" element={<ExtApp/>} />

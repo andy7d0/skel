@@ -225,20 +225,32 @@ export function broadcast(code, data) {
 */
 
 let checkConnectionCallbacks = new Set();
-export function regsiterCheckConnection(fun) { checkConnectionCallbacks.add(fun) }
-export function unregsiterCheckConnection(fun) { checkConnectionCallbacks.delete(fun) }
+export function regsiterCheckConnection(fun) { checkConnectionCallbacks.add(fun);
+  return () => { checkConnectionCallbacks.delete(fun); }
+}
   
 let controller = null;
+                // undefined - instant restart
+                // null - no restart
 let checkUrl = '/app/cache/monitor';
-export function setCheckUrl(url) { checkUrl = url; if(controller) controller.abort(); controller = null; }
+export function setCheckUrl(url) { checkUrl = url; controller?.abort(); controller = undefined; }
 
-if(window) {
+if(self.document) {
   const checkPeriod = 1000;
   let lastSuccessfullCheck = 0;
+  let recentCheck = 0;
+  let lastStatus = undefined;
   window.setInterval(()=>{
-    if(document.hasFocus()) {
+    if(
+      recentCheck > Date.now() - checkPeriod*3
+    ) {
+      const st = lastSuccessfullCheck > Date.now() - checkPeriod*3
+      if(lastStatus !== st) {
+        console.log(`ping status: ${st?'online':'offline'}`)
+        lastStatus = st;
+      }
       // only focused window can feedback 
-      for(const f of checkConnectionCallbacks) f(lastSuccessfullCheck < Date.now() - checkPeriod*3)
+      for(const f of checkConnectionCallbacks) f(st)
     } else {
       for(const f of checkConnectionCallbacks) f() // undefined
     }
@@ -247,35 +259,46 @@ if(window) {
 
   async function check(){
     console.log('start monitor')
-    controller?.abort();
-    controller = new AbortController();
-    try{
-      const response = await fetch(checkUrl,{method: "POST"
-          , body:JSON.stringify([])
-          , headers: {"Content-Type": "application/json"}
-          , signal: controller.signal})
-      if(!response.ok) {
-          throw new Error(`Monitor Response status: ${response.status}`);
+    if(!document.hasFocus()) return;
+    if(controller) {
+      controller.abort();
+      controller = undefined;
+    } else {
+      let instant = false;
+      controller = new AbortController();
+      recentCheck = Date.now();
+      try{
+        const response = await fetch(checkUrl,{method: "POST"
+            , body:JSON.stringify([])
+            , headers: {"Content-Type": "application/json"}
+            , signal: controller.signal})
+        if(!response.ok) {
+            throw new Error(`Monitor Response status: ${response.status}`);
+          }
+        const stream = response.body.pipeThrough(new TextDecoderStream());
+        for await (const value of stream) {
+          console.log(`cache monitor: ${value}`);
+          lastSuccessfullCheck = Date.now();
         }
-      const stream = response.body.pipeThrough(new TextDecoderStream());
-      for await (const value of stream) {
-        console.log(`cache monitor: ${value}`);
-        lastSuccessfullCheck = Date.now();
+        console.log(`cache monitor end`);
+        if(controller === undefined) instant = true;
+      } catch(error) {
+          console.error(error.message)
       }
-    } catch(error) {
-        console.error(error.message)
-    }   
-    window.setTimeout(check, checkPeriod*2); // retry 
+      controller = null;
+      window.setTimeout(check, instant? 0 : checkPeriod); // retry 
+    }
   }
 
-  if(document.hasFocus()) check();
   window.addEventListener('focus', check);
   window.addEventListener('blur', () => {
+    console.log('blur')
     controller?.abort();
     controller = null;
   })
-}
 
+  window.setTimeout(check,10);
+}
 
 
 /*

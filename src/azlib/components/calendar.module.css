@@ -1,0 +1,87 @@
+.container {
+	border:  1px solid;
+	padding: 1ex;
+	width: 19em;
+	background: white;
+	margin-bottom: 1em;
+	font-size: 14pt;
+}
+
+.container button {
+	border:  none;
+	background: transparent;
+}
+.header {
+	display: flex;
+	x-border-bottom: 1px solid;
+	background: #eee;
+	padding: 1ex;
+}
+
+.header > * {
+	flex: 1;
+}
+
+.header > * {
+	text-align: center;
+}
+
+.header > *:first-child
+, .header > *:last-child {
+	flex: 0;
+}
+
+.header > *:first-child {
+	text-align: left;
+}
+.header > *:first-child {
+	text-align: right;
+}
+
+
+.body {
+	display: table;
+	width:  100%;
+}
+
+.body > * {
+	display: table-row;
+}
+
+.body > * > * {
+	display: table-cell;
+	text-align: center;
+	min-width: 2.5em;
+	vertical-align: middle;
+}
+
+.body > * > * > button {
+	width: 100%;
+}
+
+.month 
+, .years 
+, .decades {
+	height: 3em;
+}
+
+.decades > :first-child {
+	margin-left: -1em;
+}
+.decades > :last-child {
+	margin-left: 1em;
+}
+
+.days {}
+
+.body > .days:first-child {
+	font-weight: bold;
+}
+
+.other {
+	color: #888;
+}
+
+.outOfRange {
+	color: #ccc;
+}

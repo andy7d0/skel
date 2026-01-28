@@ -123,7 +123,9 @@
     "unicorn/no-useless-spread": "warn",
     "unicorn/prefer-set-size": "warn",
     "unicorn/prefer-string-starts-ends-with": "warn",
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "unicorn/prefer-add-event-listener": "off",
+    "react/no-children-prop": "off",
   },
   "settings": {
     "jsx-a11y": {

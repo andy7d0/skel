@@ -89,23 +89,22 @@ async function cache_test(r) {
 		r.headersOut['Transfer-Encoding'] = 'chunked';
 		r.headersOut['X-Accel-Buffering'] = 'no';
    	r.sendHeader();
-		r.warn('start ticks');
-		const ts = { cnt: 0}
-		ts.timer = setTimeout(send_tick, 1000, r, ts);
+		//r.warn('start ticks');
+		const ts = { cnt: 0 }
+		send_tick(r,ts)
 	}
 }
 
 function send_tick(r, ts) {
 	if(++ts.cnt>10) {
-		clearTimeout(ts.timer)
 		r.send('!\n');
-		r.warn('end ticks');
+		//r.warn('end ticks');
 		r.finish();
 		return;		
 	}
 	r.send('.\n');
-	r.warn('tick');
-	ts.timer = setTimeout(send_tick,1000, r, ts);
+	//r.warn('tick');
+	setTimeout(send_tick, 1000, r, ts);
 }
 
 // check local version
