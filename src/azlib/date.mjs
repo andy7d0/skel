@@ -60,7 +60,10 @@ const systemTZOminutes = 3*60;
 // eslint-disable-next-line no-extend-native
 Object.defineProperty(Date.prototype, 'asDateString', {
     enumerable: false,
-    get: function () { return this.toISOString().slice(0,10); }
+    get: function () { 
+    	if(Number.isNaN(this.valueOf())) return '';
+    	return this.toISOString().slice(0,10); 
+    }
 });
 
 export function TodayLocal() {
@@ -95,7 +98,9 @@ export function TodaySystem() {
 // eslint-disable-next-line no-extend-native
 Object.defineProperty(Date.prototype, 'asDateTimeString', {
     enumerable: false,
-    get: function () { return this.toISOString().replace('T','').replace('Z',''); }
+    get: function () { 
+    	if(Number.isNaN(this.valueOf())) return '';
+    	return this.toISOString().replace('T','').replace('Z',''); }
 });
 
 export function localNow() {
@@ -126,7 +131,7 @@ Date.toDateTime = function(str, tz = 'Z') {
 
 export function atSystemDateTimeString(dt) {
 	if(!dt) return dt;
-	if(!(dt instanceof Date)) dt = Date.toDateTime(dt)
+	if(typeof dt === 'string') dt = Date.toDateTime(dt)
 	dt.setUTCMinutes(dt.getUTCMinutes()+systemTZOminutes)
 	return formatLocalDateTime(dt) 
 }
@@ -158,11 +163,11 @@ function parseLocalISO(dt) {
 }
 
 export function formatLocalDate(dt, locales) {
-	if(!dt) return dt;
-	if(Number.isNaN(dt)) return '';
+	if(!dt) return '';
+	if(Number.isNaN(dt.valueOf())) return '';
 	if(typeof dt === 'string') {
 		let ndt = new Date(dt.slice(0,10))
-		if(isNaN(ndt)) return dt;
+		if(Number.isNaN(ndt.valueOf())) return dt;
 		dt = ndt;
 	}
 	return dt.toLocaleDateString(locales, 
@@ -171,11 +176,11 @@ export function formatLocalDate(dt, locales) {
 }
 
 export function formatLocalDateTime(dt) {
-	if(!dt) return dt;
+	if(!dt) return '';
 	if(Number.isNaN(dt)) return '';
 	if(typeof dt === 'string') {
 		let ndt = new Date(`${dt} Z`)
-		if(isNaN(ndt)) return dt;
+		if(Number.isNaN(ndt.valueOf())) return dt;
 		dt = ndt;
 	}
 	return dt.toLocaleDateString(undefined,
@@ -230,13 +235,6 @@ export const parseLocalDate =
 		: new Date(NaN)
 	:
 		s => new Date(s)
-
-export function checkDateFormat(s) {
-	if(!s) return true;
-	const dt = parseLocalDate(s)
-	if(isNaN(dt)) return false;
-	return s === formatLocalDate(s)
-}
 
 export function months(v) {
 	v = v?.toString()

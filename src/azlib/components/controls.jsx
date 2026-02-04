@@ -1,17 +1,21 @@
-import {useState, useRef} from 'react';
+import {useState, useRef, createContext, use, useCallback} from 'react';
 import {createPortal} from 'react-dom';
 import {fileTypeFromBuffer} from 'file-type'
-import {lookup as mimeLookup} from 'mime-types'
-import {base64ArrayBuffer} from 'azlib/b64.mjs'
-import {Button} from 'azlib/components/tags'
-import {applyPlaceholder, applyEx, defer} from '../helpers'
-import {getXY, mousePos, useLocalEditValue, NaV, AutosizeTextarea} from '../ui-helpers.mjs'
-import {relativeDate, formatLocalDate, parseLocalDate, formatLocalISO} from '../date.mjs'
+import mime from 'mime'
+import {base64ArrayBuffer} from '../b64.mjs'
+import {applyPlaceholder, applyEx, defer, htmlBool} from '../helpers'
+import {getXY, mousePos} from '../ui-helpers.mjs'
+import {getValueByPath} from '../helpers.mjs'
+import {NaV, validValue} from '../schema-checker.mjs'
+import {relativeDate, formatLocalDate, parseLocalDate} from '../date.mjs'
 import {Calendar} from './calendar.jsx';
 
-import {prompt as promptBox, promptBig, PopupModal, confirm, alert} from './modals';
+import {PopupModal, globalShowModal, ModalButton, useModalContext} from './modals'
 
 import {getGlobalUniqueCode} from '../common.mjs'
+
+import * as css from './form.module.css'
+import * as modalsCss from './modals.module.css'
 
 // import {useSubsystemApi} from './fetcher'
 import { pdfjs } from 'react-pdf';
@@ -26,6 +30,21 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/l
  * 
  */
 export function fakeEvent(name, value){ return {target:{type:'', name, value}} }
+
+/**
+ * convert extrenal repsentation to editable text
+ * if extrenal is not-a-value, use last known edited value directly
+ */
+export function useLocalEditValue(value, transform) {
+    let [lastValue, setLastValue] = useState('')
+    if(!validValue(value)) return [lastValue, setLastValue]
+    if(value === null) {
+      return ['', setLastValue];
+    }
+    // replace with new known good
+    const current = transform?.(value, lastValue)??value
+    return [current, setLastValue];
+}
 
 /*
 	контролируемые компонены
@@ -48,7 +67,6 @@ export function fakeEvent(name, value){ return {target:{type:'', name, value}} }
 	есть value + local
 	варианты - при невалидном состоянии мы можем передавать в общее состояние признак
 				(например, NaN)
-				или undefined
 				или Symbol (для строк удобно и логично)
 
 	если вариант с особым значением, обновление сверху станет простым
@@ -142,7 +160,8 @@ function nullableProps(props) {
 	}
 }
 
-export function htmlProps({required, notnull, whenChanged, storageID, dataKey, error, wide, ...props}
+// eslint-disable-next-line no-unused-vars
+export function htmlProps({required, notnull, error, wide, ...props}
   , ref, tag) {
   let style = null
   if(props.style) style = {...props.style}
@@ -336,7 +355,7 @@ export function Date({ref, value, onChange, onBlur, onFocus, min, max,...props})
             //console.log(v)
       			if(min !== undefined && v < min)
       				return onChange?.(fakeEvent(e.target.name, NUMBER.NEGATIVE_INFINITY))
-      			if(max !== undefined && max < v)
+      			if(max !== undefined && v > max)
       				return onChange?.(fakeEvent(e.target.name, NUMBER.POSITIVE_INFINITY))
             onChange?.(fakeEvent(e.target.name, v.asDateString))
           }}
@@ -355,7 +374,7 @@ export function Date({ref, value, onChange, onBlur, onFocus, min, max,...props})
           autoComplete="off"
         />
         {popped?
-            createPortal(<dialog ref={node=>{node?.showModal()}}>
+            createPortal(<dialog ref={node=>{node?.show()}}>
               <Calendar ref={calendarRef}
                 style={{
                   position: pos.current.fixed ? "fixed" : "absolute"
@@ -409,20 +428,20 @@ export function EndlessDate({ref, ...props}) {
     </>
 }
 
-export function Prompt ({ref, name, value, onChange, onBlur
+export function Prompt({ref, name, value, onChange, onBlur
     , placeholder, caption, required, readOnly, multilne
     , children, ...props}) {
   const trigger = children? applyEx(children,value,name)
         : applyPlaceholder(value, placeholder)
   
-  return props.readOnly? <span button='' ref={ref}>{trigger}</span>: <Button ref={ref}
+  return props.readOnly? <span button='' ref={ref}>{trigger}</span>: <button-x ref={ref}
     onClick={async ()=>{
         if(readOnly) return;
-        let n = await (multilne?promptBig:promptBox)(caption, value, required)
+        let n = await (multilne?prompt:promptBig)(caption, value, required)
         onChange?.(fakeEvent(name,n))
         onBlur?.(fakeEvent(name))
     }} 
-    {...htmlProps(props)}>{trigger}</Button>
+    {...htmlProps(props)}>{trigger}</button-x>
 }
 
 
@@ -440,11 +459,11 @@ export function Popup ({ref, name, value, onChange, onBlur
   let decoded_value = applyEx(decode,value)
   return <PopupModal ref={ref}
             trigger={ trigger
-            	?? <Button 
+            	?? <button-x 
                           className="select"
                           readOnly={props.readOnly}
                           title={title}
-                >{applyPlaceholder(decoded_value, props.readOnly?empty:placeholder)}</Button>
+                >{applyPlaceholder(decoded_value, props.readOnly?empty:placeholder)}</button-x>
               }
             onClose={async value=>{
               if(value===undefined) return;
@@ -459,8 +478,6 @@ export function Popup ({ref, name, value, onChange, onBlur
 }
 
 Popup.TriggerButton = PopupModal.TriggerButton;
-Popup.TriggerLink = PopupModal.TriggerLink;
-
 
 
 export function Check ({ref, data, name, value, onChange, onBlur
@@ -485,7 +502,7 @@ export function InlineSelect ({ref, data, name, value, onChange, onBlur
         Object.entries(data)
         .filter(([k])=>k!=='') // skip empty val
         .map( ([k,v]) => 
-            <Button name={name} key={k} value={k}
+            <button-x name={name} key={k} value={k}
                   className={value === k? 'selected' : null} 
                   onClick={(e) => {
                     if(readOnly) return;
@@ -494,7 +511,7 @@ export function InlineSelect ({ref, data, name, value, onChange, onBlur
                       ))
                     onBlur?.(e)
                   }} 
-            >{v}</Button> 
+            >{v}</button-x> 
         )
       }
     </span>
@@ -504,7 +521,7 @@ export function SelectButton ({ref, value, children, ...props}) {
   return props.readOnly ? <span {...htmlProps(props, ref, 'input')} >{find_in_options(value, children)}</span>
   :
     //replace null <-> ''
-   <select {...htmlProps(props, ref)}  className={`button ${props.className??''}`}
+   <select {...htmlProps(props, ref)}  className={classes('button', props.className)}
     value={value??''}  
     onChange={e=>{
       if(e.target.value === '')
@@ -658,7 +675,7 @@ export async function fileToJSON(value) {
   //TODO: use dynamic import for mimeLookup
   return {
    fileName: value.name
-    , fileType: (mtype ?? mimeLookup(value.name)) || 'application/octet-stream' //value.type
+    , fileType: (mtype ?? mime.getType(value.name)) || 'application/octet-stream' //value.type
     , dataB64: b64
     , fileID: await getGlobalUniqueCode()
   }
@@ -687,20 +704,20 @@ export async function fileToJSON(value) {
 
 const defMaxFileSize = 10;
 
-export function File({value, name, readOnly, onChange, onBlur, storageID
+export function File({value, name, readOnly, onChange, onBlur
                          , maxFileSize, skipSizeNote, ...props}) {
     const mfs = maxFileSize??defMaxFileSize
     return <>
         {!readOnly && !skipSizeNote && <dfn>Размер файла не должен превышать {mfs} Мб{props?.accept==="application/pdf" && ", формат файла .pdf"}</dfn>}
         <div className="flexBox gap">
-            <FileLink name={name} value={value} storageID={storageID} />
+            <FileLink name={name} value={value} />
             {!readOnly && value &&
-                <Button name={name}
+                <button-x name={name}
                         onClick={async ()=>{
                             await confirm('Удалить?', true)
                             onChange?.(fakeEvent(name,null))
                         }}
-                >Удалить файл</Button>}
+                >Удалить файл</button-x>}
             {!readOnly &&  <label className="button">
                 {value? 'Заменить файл':'Выберите файл'}
                 <input type="file" {...props}
@@ -724,20 +741,20 @@ export function File({value, name, readOnly, onChange, onBlur, storageID
     </>
 }
 
-export function Pdf({value, name, readOnly, onChange, onBlur, storageID
+export function Pdf({value, name, readOnly, onChange, onBlur
                          , maxFileSize, skipSizeNote, maxPages, ...props}) {
     const mfs = maxFileSize??defMaxFileSize
     return <>
         {!readOnly && !skipSizeNote && <dfn>Размер файла не должен превышать {mfs} Мб, формат файла .pdf</dfn>}
         <div className="flexBox gap">
-            <FileLink name={name} value={value} storageID={storageID} />
+            <FileLink name={name} value={value} />
             {!readOnly && value &&
-                <Button name={name}
+                <button-x name={name}
                         onClick={async ()=>{
                             await confirm('Удалить?', true)
                             onChange?.(fakeEvent(name,null))
                         }}
-                >Удалить файл</Button>}
+                >Удалить файл</button-x>}
             {!readOnly &&  <label className="button">
                 {value? 'Заменить файл':'Выберите файл'}
                 <input type="file" {...props}
@@ -799,7 +816,7 @@ function FileLink() {
 //   return types[type]
 // }
 
-// export function FileLink({value, name, placeholder, storageID, fileName='file', children, ...props}) {
+// export function FileLink({value, name, placeholder, fileName='file', children, ...props}) {
 //   const subsystem = useSubsystemApi().subsystem ?? '---'
 //   const url = !!value && 
 //     (storageID?
@@ -822,4 +839,358 @@ export function HtmlValue({value, ...props}) {
   if(!value) return;
 
   return <div {...props} dangerouslySetInnerHTML={{__html:value}} />
+}
+
+
+/*
+  ArrayField uset instead filed control
+  but works in forms only
+*/
+
+const ArrayContext = createContext(null)
+const ArrayItemContext = createContext(null)
+
+export function Array({ref, name, value, onChange, filter, sort, when, readOnly, children}) {
+  const ffilter = filter === true? ([k]) => !!k :
+                typeof filter === 'string'? ([_,v]) => !!getValueByPath(v,filter)
+                : filter ? ([_,v])=> !!filter(v)
+                : null
+  const fsort = sort === true? ([k])=>k : 
+              typeof sort === 'string'? ([_,v]) => getValueByPath(v,sort)
+              : sort? ([_,v])=> sort(v) 
+              : null;
+
+  let array = Object.entries(value??{});
+
+  array = ffilter ? array.filter(ffilter) : array;
+  array = fsort? array.toSorted(
+        (a,b)=>{a = fsort(a); b = fsort(b); return cmp(a,b); } 
+      )
+      : array;
+
+  const actx = { ref
+    , name, value, onChange, readOnly
+    , array
+    , when
+    , indexes: array.reduce((a,[k], idx)=>({...a, [k]:idx}),{})
+  }
+
+  return <ArrayContext value={actx}>{children}</ArrayContext>;
+}
+
+Array.Item = ({children}) => {
+  const actx = use(ArrayContext);
+  return actx.array?.map(([k,v])=>
+        (!actx.when || actx.when(k,v))
+            && <ArrayItemContext key={k} value={{actx,index:actx.indexes[k]}}>{children}</ArrayItemContext>
+      )
+}
+
+/**
+ * 
+ *  element - control-like element, which returns data in onChange event as event.target.value
+ *  prompt - modal function returns inserted data
+ *  
+ *  iserted data can be:
+ *  { key: keyData } ==> inserts keyData as a key and true as a value
+ *  { key: keyData, value: valueData} ==> inserts keyData as a key and valueData as a value
+ *  { value: valueData } ===> append valueData as to plain array
+ *  other                ===> { value: other }
+ */
+Array.Add = function({element, prompt, unique, uniqueMessage, small
+      , max
+      , hookAdd // (defaultDoAdd, value_to_add) => void 
+    , ...props}) {
+  const actx = use(ArrayContext);
+  const doAdd = useCallback(async (item)=>{
+      if(unique) {
+        if(item.key) {
+          const set = new Set(actx.value.map(([k])=>k)) //FIXME: error? need keys
+          const nu = item.key
+          if(set.has(nu)) {
+            if(uniqueMessage===true) await alert('Уже есть')
+            else await uniqueMessage?.(item)
+            return;
+          }         
+        } else {
+          const uf = Function.isFunction(unique)? ([k,v])=>unique(k,v)
+                    : ([_,v])=>getValueByPath(v,unique)
+          const arr = Object.entries(actx.value??{});
+          const set = new Set(arr.map(uf))
+          const nu = uf([item.key,item.value])
+          if(set.has(nu)) {
+            if(uniqueMessage===true) await alert('Уже есть')
+            else await uniqueMessage?.(item)
+            return;
+          }
+        }
+      }
+      const defaultDoAdd = (item, actx) => {
+        if(item.key) {
+          const val = item.value !== undefined? item.value : true; // true for map {key:true} i.e. emulated set
+          actx.onChange(fakeEvent(actx.name, setter.object[item.key](val)(actx.value)))
+        } else {
+          const val = item; 
+          actx.onChange(fakeEvent(actx.name,setter.array.append(val)(actx.value)))
+        }
+      }
+      await (hookAdd??((def,...a)=>def(...a))) (defaultDoAdd, item, actx)
+  }, [actx, unique, uniqueMessage, hookAdd])
+
+  return !actx.readyOnly 
+    && (max === undefined || Object.keys(actx.value??[]).length < max)
+    && (
+      element?.({
+          trigger: <button-x className={css.arrayAdd} small={htmlBool(small)} {...props} />
+          , required: true
+          , onChange: e=>{ doAdd(e.target.value) }
+        }) 
+      ||
+      prompt && <button-x className={css.arrayAdd} small={htmlBool(small)} {...props} 
+        onClick={async ()=>{
+          try{
+            const item = await applyEx(prompt, actx)
+            if(item !== undefined && item !== null) doAdd(item);
+          } catch(e) {
+            console.error(e)
+          }
+        }}
+      />
+    )
+}
+
+//<Add prompt={call-modal} >text+props</Add>
+//<Add as={modal-component} >trigger-body+props</Add>
+
+Array.Del = function({confirm,small,hookDelete, ...props}) {
+  const {actx, index} = use(ArrayItemContext);
+  if(confirm === true) confirm = 'удалить?';
+  const cfunc = typeof confirm === 'string'? async () => await confirm(confirm)
+                : confirm
+  return !actx.readyOnly && <button-x className={css.arrayDel} small={htmlBool(small)}
+        onClick={async ()=>{
+          if(!cfunc || await cfunc()) {
+            const defaultDoDelete = (actx, index) => {
+                actx.onChange(fakeEvent(actx.name
+                  , setter.array.delete(index)(actx.value) ))
+              }
+            await (hookDelete??((def,...a)=>def(...a))) (defaultDoDelete, actx, index)
+          }
+        }}
+    {...props} />
+}
+
+Array.Swap = function({small}) {
+  const {actx, index} = use(ArrayItemContext);
+  if(actx.readOnly || !actx.value || actx.length < 2) return;
+
+  if(actx.value !== actx.array) return <>SORTED</>
+
+  return <><button className={index>0?css.arrowUp:css.arrowUpHidden} small={htmlBool(small)}
+          onClick={()=>{
+            actx.onChange(fakeEvent(actx.name, setter.array.swap(index-1,index)(actx.value)))
+          }}/>
+          <button className={index<actx.value.length-1?css.arrowDown:css.arrowDownHidden}  small={htmlBool(small)}
+          onClick={()=>{
+            actx.onChange(fakeEvent(actx.name, setter.array.swap(index,index+1)(actx.value)))
+          }}/>
+    </>
+}
+
+Array.Fallback = function({children}) {
+  const actx = use(ArrayContext);
+  const length = actx.when? 
+        actx.value.filter(([k,v])=>actx.when(k,v))?.length
+        : Object.keys(actx.value??{}).length
+  return !length && children;
+}
+
+Array.NotEmpty = function({children}) {
+  const actx = use(ArrayContext);
+  const length = actx.when? 
+        actx.value.filter(([k,v])=>actx.when(k,v))?.length
+        : Object.keys(actx.value??{}).length
+  return !!length && children;
+}
+
+
+Array.Index = function({offset = 1, children}){
+  const {actx,index} = use(ArrayItemContext);
+  const idx = actx.indexes[index] + offset
+  return children? applyEx(children, idx) : idx
+}
+
+/*
+  чтобы разместить кнопки отдельно, надо вызвать 
+  <WithField name={array-name}>...</WithField>
+*/
+
+  /* Identical styling required!! */
+//FIXME:!!!
+const taStyles = {
+  border: "1px solid #AAAAAA"
+  , padding: "0.5rem"
+  , margin: 0
+  , font: 'inherit'
+  , gridArea: "1 / 1 / 2 / 2"
+  , overflow: 'hidden'
+  , whiteSpace:'pre-wrap'
+  , resize: 'none'
+}
+
+export function AutosizeTextarea({ref, ...props}) {
+  return <div style={{display: "grid", width:"100%"}} className="textarea">
+          <textarea ref={ref} {...props} className=""
+            style={{...props.style, ...taStyles}} 
+          />
+          <pre style={{...props.style, visibility: 'hidden', ...taStyles}}
+          >{`${props.value??''} `}</pre>
+  </div>
+}
+
+export function alert(text) {
+  return globalShowModal(
+    <div className={modalsCss.alertBox}>
+      <div>{text}</div>
+      <footer>
+      <ModalButton>OK</ModalButton>
+      </footer>
+    </div>
+  )
+  .catch(()=>{})
+}
+
+/**
+ *   required - throw instead returning false
+ */
+export function confirm(text,required) {
+  return globalShowModal(
+    <div className={modalsCss.confirmBox}>
+      <div>{text}</div>
+      <footer>
+      <ModalButton value={true}>Да</ModalButton>
+      <ModalButton value={false}>Нет</ModalButton>
+      </footer>
+    </div>
+  )
+  .catch(()=>false)
+  .then(r => {
+    if(!r && required) throw null;
+    return r;
+  })
+}
+
+function PromptDialog({caption, initial, props}) {
+  const close = useModalContext();
+  const [text,setText] = useState(initial||'')
+  //const arrayPhrases = props.arrayPhrases;
+  return <>
+      <header>{caption}</header>
+      <input value={text}
+      onChange={e=>setText(e.target.value)} 
+      onKeyDown={e=>{
+          if(e.keyCode === 13) 
+            later(0,text).then(close) //NOTE: defer resolves too early! so, wait in timer
+          }} 
+      autoComplete="off"
+      {...props.inputProps}
+      />
+      {props?.tip && <dfn>{props?.tip}</dfn>}
+      <footer>
+      <ModalButton value={text}>Ок</ModalButton>
+      <ModalButton>Отмена</ModalButton>
+      </footer>
+    </>
+}
+
+/**
+ * props.required - throws
+ */
+export function prompt(caption, initial, props = {}) {
+  props.arrayPhrases ??= []
+  return globalShowModal(
+    <div className={modalsCss.promptBox}>
+      <PromptDialog caption={caption} initial={`${initial}`} props={props} />
+    </div>
+  )
+  .catch(()=>null)
+  .then(text=>{
+    if(text === null) {
+      if(props.required) throw null;
+      return null;
+    }
+    if(!props.asIs) text = text.trim()
+    if(!text && props.required) throw null;
+    return text;
+  })
+}
+
+function PromptBigDialog({caption, initial, props}) {
+  const close = useModalContext();
+  const [text,setText] = useState(initial||'')
+  return <>
+      <header>{caption}</header>
+      <AutosizeTextarea value={text} 
+      style={{width:"30em", maxWidth: "90vw"}}
+      onChange={e=>setText(e.target.value)} 
+      onKeyDown={e=>{
+          if(e.keyCode === 13 && e.shiftKey) 
+            later(0,text).then(close) //NOTE: defer resolves too early! so, wait in timer
+          }} 
+       {...props.inputProps}
+      />
+      <footer>
+      <ModalButton value={text}>OK</ModalButton>
+      <ModalButton>Отмена</ModalButton>
+      </footer>
+    </>
+}
+//FIXME: remove one div level
+export function promptBig(caption, initial, props = {}) {
+  if(typeof props === 'boolean')
+    props = { required: props }
+  return globalShowModal(
+    <div className={modalsCss.promptBox}>
+      <PromptBigDialog caption={caption} initial={initial} props={props} /> 
+    </div>
+  )
+  .catch(()=>null)
+  .then(text=>{
+    if(text === null) {
+      if(props.required) throw null;
+      return null;
+    }
+    if(!text && props.required) throw null;
+    return text;
+  })
+}
+
+function PromptDateDialog({caption, initial, props}) {
+  const [date,setDate] = useState(initial||'')
+  return <>
+    <header style={{fontSize:"12pt"}}><b>{caption}</b></header>
+    <Date value={date}
+        onChange={e=>setDate(e.target.value)}
+        {...props.inputProps}/>
+    <footer>
+      <ModalButton value={date}>OK</ModalButton>
+      <ModalButton>Отмена</ModalButton>
+    </footer>
+  </>
+}
+export function promptDate(caption, initial, props = {}) {
+  return globalShowModal(
+    <div className={modalsCss.promptBox}>
+      <PromptDateDialog caption={caption} initial={initial} props={props} />
+    </div>
+  )
+    .catch(()=>null)
+    .then(text=>{
+      if(text === null) {
+        if(props.required) throw null;
+        return null;
+      }
+      if(!text && props.required) throw null;
+      return text;
+    })
 }

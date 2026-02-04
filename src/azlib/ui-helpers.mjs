@@ -1,7 +1,7 @@
 import {useState,useEffect, useMemo, cloneElement} from 'react';
 
 export function applyProps(element_or_function, props) {
-  if(typeof element_or_function === "function") return element_or_function(props)
+  if(Function.isFunction(element_or_function)) return element_or_function(props)
   return cloneElement(element_or_function, props)
 }
 
@@ -80,57 +80,6 @@ export function noOpSetValue(value) {
   return (f) => typeof f === 'function' ? f(value) : undefined
 }
 
-/**
- * Not-a-value value
- */
-export const NaV = Symbol('Not-a-value')
-
-export function validValue(v) {
-  // eslint-disable-next-line no-self-compare
-  return v === v // !isNaN
-    && v !== Number.NEGATIVE_INFINITY // underrange
-    && v !== Number.POSITIVE_INFINITY // overreange
-    && v !== NaV;
-}
-
-/**
- * convert extrenal repsentation to editable text
- * if extrenal is not-a-value, use last known edited value directly
- */
-export function useLocalEditValue(value, transform) {
-    let [lastValue, setLastValue] = useState('')
-    if(!validValue(value)) return [lastValue, setLastValue]
-    if(value === null) {
-      return ['', setLastValue];
-    }
-    // replace with new known good
-    const current = transform?.(value, lastValue)??value
-    return [current, setLastValue];
-}
-
-
-  /* Identical styling required!! */
-//FIXME:!!!
-const taStyles = {
-  border: "1px solid #AAAAAA"
-  , padding: "0.5rem"
-  , margin: 0
-  , font: 'inherit'
-  , gridArea: "1 / 1 / 2 / 2"
-  , overflow: 'hidden'
-  , whiteSpace:'pre-wrap'
-  , resize: 'none'
-}
-
-export function AutosizeTextarea({ref, ...props}) {
-  return <div style={{display: "grid", width:"100%"}} className="textarea">
-          <textarea ref={ref} {...props} className=""
-            style={{...props.style, ...taStyles}} 
-          />
-          <pre style={{...props.style, visibility: 'hidden', ...taStyles}}
-          >{`${props.value??''} `}</pre>
-  </div>
-}
 
 export function asyncStateValue(reducer) {
   return new Promise(resolve=>{

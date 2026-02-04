@@ -8,7 +8,7 @@ export default function ExtAppRoutes(){
 
 function ExtApp() {
 	return <div>
-		<h1>ext app</h1>
+			<h1>ext app</h1>
 	</div>
 }
 

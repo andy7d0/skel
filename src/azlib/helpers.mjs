@@ -1,3 +1,5 @@
+import {produce} from 'immer'
+
 export const MY = Symbol('My') 
 
 /**
@@ -43,7 +45,7 @@ export const setter = {
 	}) 
 	, array: (idx, value) =>
   				idx === null ? setter.array.append(value)
-				: idx === undefined ? setter.array.prepend(value)
+					: idx === undefined ? setter.array.prepend(value)
   				: value === undefined ? setter.array.delete(idx)
   				: setter.array.replace(idx,value)
 } 
@@ -56,6 +58,11 @@ setter.array.delete = idx=>
 setter.array.replace = (idx, value)=>
 				      typeof idx  === 'function' ? a=>(a??[]).map(e=>idx(e)? value: e) 
 				      : a=>(a??[]).toSpliced(idx,1, value)
+
+setter.array.swap = (idx1, idx2)=>
+							a=>a.map((v,i,a)=>
+									i === idx1? a[idx2] : i === idx2? a[idx1] : v 
+								)
 
 export const cmp = (a,b) => (a > b) - (a < b);  
 
@@ -235,39 +242,9 @@ export function throttle(fn, delay, context) {
 /**
  * restrict calls of given function
  * not frequently than specified in delay (ms)
- * if thre was the calls within delay ms since last call
+ * if there was the calls within delay ms since last call
  * last one call with last provideded args will happen at the intreval end
  */
-export function debounceImmidiate(fn, delay, context) { 
-	// eslint-disable-next-line no-this-in-exported-function
-	context ??= this;
-	let result;
-	let next = Date.now();
-	let last_args;
-	let id = 0;
-
-	return function() { 
-		if(Date.now() >= next) {
-			// immidiate call
-			next = Date.now()+delay;
-			clearTimeout(id); id = 0; last_args = undefined;
-			result = fn.apply(context, arguments);
-		} else {
-			// delay call execution
-			if(last_args === undefined) {
-				id = setTimeout(()=>{
-						let args = last_args;
-						id = 0; last_args = undefined;
-						result = fn.apply(context, args);
-					}
-					, next-Date.now())
-			}
-			last_args = Array.from(arguments)
-		}
-
-		return result;
-	};
-}
 
 /**
  * execute given async(!) function sequentially
@@ -408,3 +385,27 @@ export function smartTrim(s) {
 	s = s.replace(/[|]([|]+)/,'$1')
 	return s;
 }
+
+export function getValueByPath(values, name) {
+	return !name? values 
+		: name.split('.').reduce((bag,name) => bag?.[name], values) ?? null
+}
+export function setValueByPath(values, name, value) {
+	if(!name) return value;
+	name = name.split('.');
+	const last = name.pop();
+	return produce(value, draft =>{
+		let d = draft
+		for(const n of name) {
+			d[n] ??= {}
+			d = d[n]
+		}
+		d[last] = value;
+	})
+}
+
+export function setStateByPath(values, name, value) {
+	values(current => setValueByPath(current, name, value))
+}
+
+

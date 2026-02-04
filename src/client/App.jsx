@@ -5,6 +5,8 @@ import reactLogo from './assets/react.svg';
 // eslint-disable-next-line no-unassigned-import
 import './App.css';
 
+import {mtest} from './tests/form-test'
+
 
 const ExtApp = lazy(()=> import(
     /* webpackChunkName: "ext/app" */
@@ -43,6 +45,12 @@ function DefApp() {
       </div>
       <p className="read-the-docs">
         Click on the Rspack and React logos to learn more
+      </p>
+
+      <p>
+        <button onClick={async ()=>{
+          DBG(await mtest())
+        }}>TEST</button>
       </p>
     </div>
   );

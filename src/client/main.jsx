@@ -1,13 +1,20 @@
 //import _R from "core-js/stable";
+
+import {enableMapSet, enableArrayMethods} from "immer"
+enableMapSet(); enableArrayMethods();
+//import {enablePatches} from "immer"
+
 // eslint-disable-next-line no-unassigned-import
 import "azlib/globals.mjs";
 // eslint-disable-next-line no-unassigned-import
 import "azlib/helpers.mjs";
 // eslint-disable-next-line no-unassigned-import
 import "azlib/date.mjs";
+
 import {initPeerAndID} from 'azlib/common.mjs' 
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import {GlobalModals} from 'azlib/components/modals'
 import App from './App.jsx';
 // eslint-disable-next-line no-unassigned-import
 import './index.css';
@@ -39,7 +46,9 @@ initPeerAndID()
   const root = createRoot(document.getElementById('root'));
   return root.render(
     <StrictMode>
+      <GlobalModals>
       <App />
+      </GlobalModals>
     </StrictMode>
   );
 });

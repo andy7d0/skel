@@ -1,0 +1,206 @@
+@value colors: "../../colors.module.css";
+
+@value  main_dark_text_color from colors;
+@value  header_text_color from colors;
+@value  section_background_color from colors;
+
+@value delete_background_color from colors;
+@value delete_text_color from colors;
+
+@value reset_background_color from colors;
+@value reset_text_color from colors;
+
+@value submit_background_color from colors;
+@value submit_text_color from colors;
+
+@value check_background_color from colors;
+@value check_text_color from colors;
+@value label_text_color from colors;
+@value error_star_color from colors;
+@charset "UTF-8";
+
+table > tbody > tr > td fieldset.formField {
+	border: none;
+	padding: 0px;
+}
+.formClean .formFieldClean{
+	margin: 1em 0;
+}
+fieldset, fieldset.formField {
+	border: 1px solid lightgray;
+	padding: 5px;
+	margin: 0;
+}
+fieldset.formFieldClean {
+	border: none;
+	padding: 0;
+	margin: 0;
+}
+
+.formLabel
+, fieldset.formField > label
+, fieldset.formFieldClean > label
+{
+	display: block;
+	margin-bottom: 5px;
+}
+
+fieldset.formField > dfn
+, fieldset.formFieldClean > dfn 
+{
+	display: block;
+	color: label_text_color;
+	font-size: 0.7rem;
+	font-style: italic;
+}
+fieldset.formField > div
+, fieldset.formFieldClean > div{
+	font-family: Gilroy-SemiBold;
+	display: inline;
+}
+.formUnit
+, fieldset.formField > var
+, fieldset.formFieldClean > var 
+{
+	display: inline;
+}
+
+.formError
+, fieldset.formField > mark  
+, fieldset.formFieldClean > mark
+{
+	background: transparent;
+	color: red;
+}
+
+sup>kbd:empty::after
+, fieldset.formField > label > sup:empty 
+, fieldset.formFieldClean > label > sup:empty 
+, fieldset.formField > var > sup:empty 
+, fieldset.formFieldClean > var > sup:empty 
+{
+}
+
+sup>kbd:empty::after
+, fieldset.formField > label > sup:empty::after 
+, fieldset.formField > var > sup:empty::after 
+, fieldset.formFieldClean > label > sup:empty::after 
+, fieldset.formFieldClean > var > sup:empty::after 
+{
+	content: "*";
+	color: red;
+}
+
+.labeledField > label{
+	display: inline-block;
+	margin-bottom: 0.5em;
+}
+.labeledField[required] > label:not(:empty):after
+{
+	content: '*';
+	color: error_star_color;
+	position: relative;
+	top: -2px;
+	display: inline-block;
+}
+
+.resetButton {
+	border: 1px solid reset_text_color;
+	color: reset_text_color !important;
+	background: reset_background_color;
+}
+
+.mainSubmit {
+	color: submit_text_color;
+	background: submit_background_color;
+}
+
+.checkSubmit {
+	color: check_text_color;
+	background: check_background_color;
+}
+
+.deleteDoc {
+	color: delete_text_color;
+	background: delete_background_color;
+}
+
+button.arrayAdd>span:empty:after {
+	content: '+';
+}
+button.arrayDel>span:empty:after {
+	content: '×';
+}
+fieldset.formField > footer {
+	font-size: 90%;
+	font-style: italic;
+	margin-left: 1em;
+}
+fieldset.formFieldClean > footer {
+	font-size: 80%;
+}
+button.arrayAdd[small]>span:empty:after {
+	content: url(images/arrayAdd.svg);
+}
+button.arrayDel[small]>span:empty:after {
+	content: url(images/arrayDelete.svg);
+}
+button.arrayDelRed[small]>span:empty:after {
+	content: url(images/arrayDeleteRed.svg);
+}
+
+button.arrayAdd[small], button.arrayDel[small], button.arrayDelRed[small] {
+	border: none;
+	padding: 0;
+	background: transparent;
+	color: inherit;
+	margin: auto 0;
+}
+button.arrayAdd[small]:not([small="inline"]){
+	display: block;
+}
+
+button.arrowUp, button.arrowUpHidden, button.arrowDown, button.arrowDownHidden {
+	padding: 0;
+	background: transparent;
+	color: black;
+}
+
+button.arrowUp>span:empty:before{
+	content: url(images/arrowUp.svg);
+}
+button.arrowDown>span:empty:after{
+	content: url(images/arrowDown.svg);
+}
+button.arrowUpHidden>span:empty:before {
+	content: url(images/arrowUpHidden.svg);
+}
+button.arrowDownHidden>span:empty:after {
+	content: url(images/arrowDownHidden.svg);
+}
+button.arrowUpHidden, button.arrowDownHidden {
+	pointer-events: none;
+}
+a[href].docEditButton,  a[href].docEditButton:visited{
+	color: white;
+}
+.docEditButton{
+	margin-top: 1em;
+}
+table.formTable,.formTable th,.formTable td {
+	border: 1px solid #AAAAAA;
+	border-collapse: collapse;
+}
+table.formTable td{
+	padding: 10px;
+}
+.formTable label{
+	margin: 0 0.5rem 0.5rem 0;
+	display: inline-block;
+}
+.explicitChanges fieldset{
+	border: none;
+}
+/*.explicitChanges fieldset input[nullable]{*/
+/*	width: 30em;*/
+/*}*/

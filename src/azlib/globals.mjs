@@ -1,5 +1,7 @@
 import round from 'locutus/php/math/round.js'
+import {produce} from 'immer';
 
+Function.isFunction = obj => typeof obj === "function"
 
 /*
   "str".decode(name)
@@ -8,7 +10,7 @@ import round from 'locutus/php/math/round.js'
 // eslint-disable-next-line no-extend-native
 Object.defineProperty(String.prototype, 'decode', {
     enumerable: false,
-    value: function (decoder) { return typeof decoder === "function"? decoder(this.toString()) : decoder[this]; }
+    value: function (decoder) { return Function.isFunction(decoder)? decoder(this.toString()) : decoder[this]; }
 });
 
 
@@ -25,8 +27,11 @@ Object.defineProperty(String.prototype, 'in', {
 });
 
 
+
 Math.phpRound = (v,n) => round(v,n)
 
+
+Object.produce = produce
 
 //https://github.com/GoogleChromeLabs/jsbi
 

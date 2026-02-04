@@ -78,6 +78,10 @@
 	font-weight: bold;
 }
 
+.current {
+	color: #888;
+}
+
 .other {
 	color: #888;
 }

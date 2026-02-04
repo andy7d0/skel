@@ -1,6 +1,6 @@
 import {useState} from 'react';
 
-import styles from './calendar.module.css';
+import * as styles from './calendar.module.css';
 
 // eslint-disable click-events-have-key-events tabindex-no-positive
 

@@ -1,15 +1,13 @@
 import {createContext, use, useState, useEffect, useCallback, useRef} from 'react';
-import {Button} from 'azlib/components/tags'
 import {createPortal} from 'react-dom';
 import {createRoot} from 'react-dom/client';
 
 import { Link } from "react-router-dom";
 
-import { later, classes } from '../helpers.mjs'
-import { AutosizeTextarea, getXY, applyProps} from '../ui-helpers.mjs'
+import { classes } from '../helpers.mjs'
+import { /*getXY,*/ applyProps} from '../ui-helpers.mjs'
 
-import css from './modals.module.css'
-import {Date} from "./controls";
+import * as css from './modals.module.css'
 
 // eslint-disable click-events-have-key-events no-noninteractive-tabindex
 //tabindex-no-positive
@@ -80,11 +78,11 @@ const focusableSelector = "INPUT,TEXTAREA,SELECT,BUTTON";
 
 
 export function useModals() {
-	const [element, setOpen] = useState({})
+	const [element, setOpen] = useState()
 
 	const showModal = useCallback((element, modalProps = {}, bindProps = {}, triggerElem = null) => {
 		const {
-			closeBox = false, closeWithEsc = true, closeWithClick = true
+			closeBox = false, closeBy = "any"
 			, toFocus = focusableSelector
 			, framed = true, className, style, width, height		
 		} = modalProps
@@ -95,36 +93,21 @@ export function useModals() {
 
 			() => {
 
-			const {x=0,y=0,w=0,h=0} = getXY(triggerElem) || {}
+			//const {x=0,y=0,w=0,h=0} = getXY(triggerElem) || {}
+			const {left=0,top=0,width=0,height=0} = triggerElem.getBoundingClientRect()
 
-			return position?.(x,y,w,h) ?? { x: bindX === 'right'? x+w : x
-    		 					, y: bindY === 'bottom'? y : y+h
+			return position?.(left,top,width,height) ?? { x: bindX === 'right'? left+width : left
+    		 					, y: bindY === 'bottom'? top : top+height
     		 					}
     	}
 
     	let currentPos = { x:0, y:0 }
 
-		let popupStyle = adjustPos ?
-		{
-			...style
-			, position: 'absolute'
-			, [bindX]: bindX==='right'? document.body.offsetWidth - currentPos.x
-							: currentPos.x
-			, [bindY]: bindY==='bottom'? -currentPos.y
-							: currentPos.y
-			, width
-			, height
-		}
-		:
-		{
-			...style
-			, position:'fixed'
-			, top: "50%", left:"50%"
-			, transform: "translate(-50%, -50%)"
-			, maxWidth: "100vw", maxHeight: "95vh"
-			, overflow: "auto"
-			, width
-			, height
+		let popupStyle =  { ...style, overflow: 'auto', width, height}
+		if(adjustPos) {
+			currentPos = adjustPos()
+			if(bindX) popupStyle[bindX] = `${currentPos.x}px`;
+			if(bindY) popupStyle[bindY] = `${currentPos.y}px`;
 		}
 
 		let dialogNode = null;
@@ -133,9 +116,9 @@ export function useModals() {
 		  	if(node) {
 		  		dialogNode = node
 		  		dialogNode.showModal()
-		  		const to_focus = dialogNode.querySelector(toFocus);
+		  		//const to_focus = dialogNode.querySelector(toFocus);
 		  		//console.log('to_focus', to_focus, node, node.children.length);
-		  		(to_focus||dialogNode).focus()
+		  		//(to_focus||dialogNode).focus()
 		  	}		
 		}
 
@@ -146,12 +129,8 @@ export function useModals() {
 				const np = adjustPos()
 				if(currentPos.x === np.x && currentPos.y === np.y) return
 				currentPos = np;
-				dialogNode.style[bindX] = 
-							bindX==='right'? document.body.offsetWidth - currentPos.x
-							: currentPos.x
-				dialogNode.style[bindX] = 
-							bindY==='bottom'? -currentPos.y
-							: currentPos.y
+				if(bindX) dialogNode.style[bindX] = `${currentPos.x}px`
+				if(bindY) dialogNode.style[bindY] = `${currentPos.y}px`
 			}, 10)
 		}
 
@@ -159,23 +138,17 @@ export function useModals() {
 
 	    function close(value) {
 	    	resolve(value)
+	    	setOpen()
 	    	if(ival) clearInterval(ival)
 	    }
 
 	    element = applyEx(element, close)
 
-		setOpen(<dialog style={popupStyle} className={className} 
-				onKeyDown={(e) => { if(closeWithEsc && e.keyCode === 27) close() } }
+		setOpen(<dialog style={popupStyle} 
+				className={className} 
 				ref={modalRefChanged}
-				tabIndex="0"
-				onClick={event=>{
-					  if(!closeWithClick || !dialogNode) return;
-					  const rect = dialogNode.getBoundingClientRect();
-					  const isInDialog = (rect.top <= event.clientY && event.clientY <= rect.top + rect.height &&
-					    rect.left <= event.clientX && event.clientX <= rect.left + rect.width);
-					  if (!isInDialog) close();
-					 }
-					}
+				closedby={closeBy}
+				onCancel={()=>close()}
 				>
 				{closeBox && <div className={css.closeBox} onClick={ ()=>close() }/>}
 				<PopupFrameContext value={framed}>
@@ -189,7 +162,7 @@ export function useModals() {
 	,[setOpen])
 
 	showModal.Portal = ({children})=> <>
-		{element && createPortal(element, document.getElementById('modals'))}
+		{element && createPortal((element), document.getElementById('modals'))}
 		{applyEx(children, showModal)}
 	</>
 
@@ -290,8 +263,8 @@ export function PopupModal({
 }
 
 export function TriggerButton({props}) {
-	return handlers=>props.readOnly? props.children
-			: <Button {...handlers} {...props} />
+	return handlers=>props.readOnly? <span>props.children</span>
+			: <button-x {...handlers} {...props} />
 }
 PopupModal.Button = TriggerButton;
 
@@ -306,7 +279,7 @@ export function ModalLink(props) {
 
 export function ModalButton(props) {
 	const close = useModalContext();
-	return <Button className={css.modalButton}
+	return <button-x className={css.modalButton}
 		{...props}
 		onClick={(e)=>{
 			props.onClick?.(e)
@@ -317,7 +290,7 @@ export function ModalButton(props) {
 
 export function Cancel(props) {
 	const close = useModalContext();
-	return <Button className={css.modalButton}
+	return <button-x className={css.modalButton}
 		{...props}
 		onClick={(e)=>{
 			props.onClick?.(e)
@@ -399,7 +372,7 @@ export function showModalProcessing(showModal, operation, UI)
 	)
 }
 
-let globalShowModal = null;
+export let globalShowModal = null;
 
 export function GlobalModals({children}) {
 	const showModal = useModals()
@@ -408,159 +381,6 @@ export function GlobalModals({children}) {
 	return <showModal.Portal>{children}</showModal.Portal>
 }
 
-export function alert(text) {
-	return globalShowModal(
-		<div className={css.alertBox}>
-			<div>{text}</div>
-			<footer>
-			<ModalButton>OK</ModalButton>
-			</footer>
-		</div>
-	)
-	.catch(()=>{})
-}
-
-/**
- *   required - throw instead returning false
- */
-export function confirm(text,required) {
-	return globalShowModal(
-		<div className={css.confirmBox}>
-			<div>{text}</div>
-			<footer>
-			<ModalButton value={true}>Да</ModalButton>
-			<ModalButton value={false}>Нет</ModalButton>
-			</footer>
-		</div>
-	)
-	.catch(()=>false)
-	.then(r => {
-		if(!r && required) throw null;
-		return r;
-	})
-}
-
-function Prompt({caption, initial, props}) {
-	const close = useModalContext();
-	const [text,setText] = useState(initial||'')
-	const arrayPhrases = props.arrayPhrases;
-	return <>
-			<header>{caption}</header>
-			<input value={text}
-			onChange={e=>setText(e.target.value)} 
-			onKeyDown={e=>{
-					if(e.keyCode === 13) 
-						later(0,text).then(close) //NOTE: defer resolves too early! so, wait in timer
-					}} 
-		  autoComplete="off"
-		  {...props.inputProps}
-			/>
-			{arrayPhrases.length > 1 &&
-				<ul>
-					{arrayPhrases.map((item, key) => (
-							<li onClick={()=>setText(item)} key={key}><hr/>{item}</li>
-					))}
-				</ul>
-			}
-			{props?.tip && <dfn>{props?.tip}</dfn>}
-			<footer>
-			<ModalButton value={text}>Ок</ModalButton>
-			<ModalButton>Отмена</ModalButton>
-			</footer>
-		</>
-}
-
-/**
- * props.required - throws
- */
-export function prompt(caption, initial, props = {}) {
-	props.arrayPhrases ??= []
-	return globalShowModal(
-		<div className={css.promptBox}>
-			<Prompt caption={caption} initial={`${initial}`} props={props} />
-		</div>
-	)
-	.catch(()=>null)
-	.then(text=>{
-		if(text === null) {
-			if(props.required) throw null;
-			return null;
-		}
-		if(!props.asIs) text = text.trim()
-		if(!text && props.required) throw null;
-		return text;
-	})
-}
-
-function PromptBig({caption, initial, props}) {
-	const close = useModalContext();
-	const [text,setText] = useState(initial||'')
-	return <>
-			<header>{caption}</header>
-			<AutosizeTextarea value={text} 
-			style={{width:"30em", maxWidth: "90vw"}}
-			onChange={e=>setText(e.target.value)} 
-			onKeyDown={e=>{
-					if(e.keyCode === 13 && e.shiftKey) 
-						later(0,text).then(close) //NOTE: defer resolves too early! so, wait in timer
-					}} 
-			 {...props.inputProps}
-			/>
-			<footer>
-			<ModalButton value={text}>OK</ModalButton>
-			<ModalButton>Отмена</ModalButton>
-			</footer>
-		</>
-}
-//FIXME: remove one div level
-export function promptBig(caption, initial, props = {}) {
-	if(typeof props === 'boolean')
-		props = { required: props }
-	return globalShowModal(
-		<div className={css.promptBox}>
-			<PromptBig caption={caption} initial={initial} props={props} /> 
-		</div>
-	)
-	.catch(()=>null)
-	.then(text=>{
-		if(text === null) {
-			if(props.required) throw null;
-			return null;
-		}
-		if(!text && props.required) throw null;
-		return text;
-	})
-}
-
-function PromptDate({caption, initial, props}) {
-	const [date,setDate] = useState(initial||'')
-	return <>
-		<header style={{fontSize:"12pt"}}><b>{caption}</b></header>
-		<Date value={date}
-			  onChange={e=>setDate(e.target.value)}
-			  {...props.inputProps}/>
-		<footer>
-			<ModalButton value={date}>OK</ModalButton>
-			<ModalButton>Отмена</ModalButton>
-		</footer>
-	</>
-}
-export function promptDate(caption, initial, props = {}) {
-	return globalShowModal(
-		<div className={css.promptBox}>
-			<PromptDate caption={caption} initial={initial} props={props} />
-		</div>
-	)
-		.catch(()=>null)
-		.then(text=>{
-			if(text === null) {
-				if(props.required) throw null;
-				return null;
-			}
-			if(!text && props.required) throw null;
-			return text;
-		})
-}
 
 /**
 *   usage

@@ -1,0 +1,122 @@
+@value colors: "../../colors.module.css";
+
+@value  popup_background_color from colors;
+@value  main_text_color from colors;
+@value  popup_text_color from colors;
+@charset "UTF-8";
+
+.PopupFrame
+{
+  padding: 2ex;
+  background: popup_background_color;
+  outline: none;
+}
+
+.closeBox {
+  height: 30px;
+  box-sizing: border-box;
+  padding: 5px;
+  
+  background: white;
+  display:block;
+  
+  z-index: 1;
+  color: gray;
+  cursor: pointer;
+
+  position: sticky;
+  top: 0;
+
+  transform: translate(0, -14px);
+
+  border-bottom: 1px solid #ccc;
+
+  width: 100%;
+}
+.closeBox:after {
+  font-size: 24px;
+  display: block;
+  content: "✕";
+  position: absolute;
+  top: 50%; right: 10px;
+  transform: translate(-50%,-50%);
+}
+
+/*
+  popup footer -  modal (close dialog) buttons
+*/
+
+.PopupFrame .modalButton {
+  border: 1px solid rgba(119, 161, 187, 0.9);
+  padding: 0.5em 1em;
+}
+
+.PopupFrame footer
+{
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  margin-top: 1em;
+}
+
+.PopupFrame footer button.modalButton
+{
+  border: none;
+  padding: 5px 1em;
+  box-shadow: none;
+}
+
+/*
+  margins for dialog footer
+*/
+.PopupFrame footer *
+{
+  margin: 0 1em;
+  /*display: inline;*/
+}
+
+.PopupFrame footer :first-child {
+  margin-right: 1ex;
+}
+.PopupFrame footer :last-child {
+  margin-left: 1ex;
+}
+
+
+.alertBox, .confirmBox {
+  min-width: 10em;
+}
+
+.promptBox {
+  min-width: 15em;
+}
+
+.alertBox > div:first-child
+, .confirmBox > div:first-child 
+{
+  color: main_text_color;
+  margin-top: 1em;
+  text-align: center;
+}
+
+.promptBox > header {
+  color: main_text_color;
+  margin-top: 1ex;
+  margin-bottom: 0.5em;
+}
+
+.promptBox > input {
+  border: none;
+  height: 2em;
+  border-radius: 5px;
+  background: rgba(233, 235, 243, 0.9);
+  width: 50em;
+  max-width: 90vw;
+}
+
+.promptBox > footer {
+  color: main_text_color;
+  margin-top: 1ex;
+  margin-bottom: 0.5em;
+}
+
