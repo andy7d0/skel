@@ -4,6 +4,7 @@
 	width: 19em;
 	background: white;
 	font-size: 14pt;
+	color: black;
 }
 
 .container button {
@@ -12,7 +13,6 @@
 }
 .header {
 	display: flex;
-	x-border-bottom: 1px solid;
 	background: #eee;
 	padding: 1ex;
 }
@@ -78,13 +78,14 @@
 }
 
 .current {
-	color: #888;
+	opacity: 0.6;
 }
 
 .other {
-	color: #888;
+	opacity: 0.4;
 }
 
 .outOfRange {
-	color: #ccc;
+	opacity: 0.4;
+	text-decoration: line-through;
 }

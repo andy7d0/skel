@@ -313,7 +313,7 @@ export function Number({ref, min,max,...props}) {
 
 
 
-export function Date({ref, value, onChange, onBlur, min, max,...props}) {
+export function Date({ref, value, button, reserved, onClick, onChange, onBlur, min, max,...props}) {
 
   let myRef = useRef(null)
   let dlgRef = useRef(null)
@@ -326,7 +326,9 @@ export function Date({ref, value, onChange, onBlur, min, max,...props}) {
   if(ref) ref.current = myRef.current
 
   return props.readOnly? <span input=''>{localValue}</span>
-      : <input-ext {...htmlProps(props, myRef)} value={localValue} 
+      : <input-ext {...htmlProps(props, myRef)} 
+          value={localValue} 
+          reserved={reserved ?? (button?'2em':'')}
           onKeyDown={()=>dlgRef.current?.close()}
           onChange={(e)=>{
             setLocalValue(e.target.value)
@@ -351,15 +353,23 @@ export function Date({ref, value, onChange, onBlur, min, max,...props}) {
             }
           }
           autoComplete="off"
+          onClick={e=>{
+            onClick?.(e)
+            if(!button && !props.readOnly && dlgRef.current) {
+              if(dlgRef.current.open) dlgRef.current.close();
+              else dlgRef.current.show();
+              myRef.current?.focus();
+            }
+          }}
         >
         {/* eslint-disable-next-line click-events-have-key-events */}
-        <span slot="buttons"
+        {button && <span slot="buttons"
           onClick={()=>{
             if(!props.readOnly && dlgRef.current) 
               if(dlgRef.current.open) dlgRef.current.close();
               else dlgRef.current.show(); 
           }}
-        >C</span>
+        >C</span>}
         <dialog ref={dlgRef} style={{border: "none", padding: 0}}>
               <Calendar
                 onChoose={(dt)=>{

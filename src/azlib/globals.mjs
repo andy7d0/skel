@@ -40,7 +40,7 @@ Object.produce = produce
 
 window.customElements.define("aligned-button", class extends HTMLElement {
     static formAssociated = true;
-    static observedAttributes = ['value', 'type', 'align', ''];
+    static observedAttributes = ['value', 'type', 'align', 'vertical-align'];
 
     constructor()  {
         super();
@@ -111,6 +111,8 @@ window.customElements.define("input-ext", class extends HTMLElement {
     get willValidate() {return this.internals.willValidate; }
     checkValidity() { return this.internals.checkValidity(); }
     reportValidity() { return this.internals.reportValidity(); }
+
+    focus() { this.input.focus() }
 
     attributeChangedCallback(name, oldValue, newValue) {
         switch (name) {

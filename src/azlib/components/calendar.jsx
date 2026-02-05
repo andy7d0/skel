@@ -47,7 +47,7 @@ function range(n) {
 }
 
 function Hbutton({params, mode, yearOffset, modulo, month, ...props}) {
-	return <span type="button"
+	return <span
 		onClick={()=>{
 			if(mode) params.setMode(mode)
 			params.setStart(date(
@@ -62,7 +62,7 @@ function Hbutton({params, mode, yearOffset, modulo, month, ...props}) {
 }
 
 function Bbutton({params, mode, year, month, ...props}) {
-	return <span type="button"
+	return <span
 		onClick={()=>{
 			params.setMode(mode ?? 'days')
 			params.setStart(date(
@@ -125,7 +125,7 @@ export function Calendar({ref,onChoose,min,max,...props}) {
 												(dt=>
 													<span key={wd}
 													>
-													<Xbutton type="button" 
+													<Xbutton 
 														className={
 															dt.getMonth() === start.getMonth()
 															? styles.current

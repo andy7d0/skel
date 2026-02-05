@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes,Route, Link} from "react-router-dom"
 
 import reactLogo from './assets/react.svg';
@@ -21,8 +21,6 @@ const IntApp = lazy(()=> import(
 
 
 function DefApp() {
-  const [count, setCount] = useState(0);
-
   return (
     <div className="App">
       <div>
@@ -32,9 +30,6 @@ function DefApp() {
       </div>
       <h1>Rspack + React!</h1>
       <div className="card">
-        <button type="button" onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
         <p>
           Edit <code>src/client/App.jsx</code> and save to test HMR
         </p>
