@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, useRef } from 'react';
 import { BrowserRouter as Router, Routes,Route, Link} from "react-router-dom"
 
 import reactLogo from './assets/react.svg';
@@ -6,6 +6,8 @@ import reactLogo from './assets/react.svg';
 import './App.css';
 
 import {mtest} from './tests/form-test'
+
+import {Date} from 'azlib/components/controls'
 
 
 const ExtApp = lazy(()=> import(
@@ -20,6 +22,7 @@ const IntApp = lazy(()=> import(
 
 function DefApp() {
   const [count, setCount] = useState(0);
+  const rr = useRef()
 
   //if(false) console.log(aaa)
 
@@ -48,10 +51,23 @@ function DefApp() {
       </p>
 
       <p>
-        <button onClick={async ()=>{
+        <button-x onClick={async ()=>{
           DBG(await mtest())
-        }}>TEST</button>
+        }}>TEST</button-x>
       </p>
+      <form onSubmit={()=> console.log(new FormData(event.target))} >
+      <p><input-x ref={rr} name="fff" value="lll" reserved="5em">
+          <button slot="buttons"
+          >B</button>
+          <span>body</span>
+          </input-x>
+      </p>
+      <button-x type="submit" name="ddd" value="33">kkk</button-x>
+      </form>
+      <div>
+      <Date />
+      </div>
+      88888
     </div>
   );
 }

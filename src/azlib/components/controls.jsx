@@ -1,5 +1,4 @@
 import {useState, useRef, createContext, use, useCallback} from 'react';
-import {createPortal} from 'react-dom';
 import {fileTypeFromBuffer} from 'file-type'
 import mime from 'mime'
 import {base64ArrayBuffer} from '../b64.mjs'
@@ -313,17 +312,12 @@ export function Number({ref, min,max,...props}) {
 />}
 
 
-function adjustCalendarPos(pos) { return pos }
 
-export function Date({ref, value, onChange, onBlur, onFocus, min, max,...props}) {
-  let [popped, setPopped] = useState(false)
+export function Date({ref, value, onChange, onBlur, min, max,...props}) {
 
-  let calendarRef = useRef(null)
-  let clicked = useRef(false)
   let myRef = useRef(null)
+  let dlgRef = useRef(null)
  
-  let pos = useRef()
-
   min = relativeDate(min) // DATE!
   max = relativeDate(max) // DATE!
 
@@ -332,18 +326,8 @@ export function Date({ref, value, onChange, onBlur, onFocus, min, max,...props})
   if(ref) ref.current = myRef.current
 
   return props.readOnly? <span input=''>{localValue}</span>
-      :(<>
-        <input {...htmlProps(props, myRef)} value={localValue} 
-          onClick={()=>{
-            if(myRef.current) {
-              const tp = getXY(myRef.current);
-              //eslint-disable-next-line no-unused-vars
-              const {x,y,w,h} = tp;
-              pos.current = {x,y:y+h, fixed: tp.fixed}
-            }
-            if(!props.readOnly) setPopped(!popped)
-          }}
-          onKeyDown={()=>setPopped(false)}
+      : <input-x {...htmlProps(props, myRef)} value={localValue} 
+          onKeyDown={()=>dlgRef.current?.close()}
           onChange={(e)=>{
             setLocalValue(e.target.value)
     		    let v = e.target.value.trim()
@@ -359,54 +343,34 @@ export function Date({ref, value, onChange, onBlur, onFocus, min, max,...props})
       				return onChange?.(fakeEvent(e.target.name, NUMBER.POSITIVE_INFINITY))
             onChange?.(fakeEvent(e.target.name, v.asDateString))
           }}
-          onFocus={e=>{
-            clicked.current = false;
-            return onFocus?.(e)
-          }}
           onBlur={e=>{
               //console.log('blur',e, e.relatedTarget)
               onBlur?.(e);
-              if(!clicked.current) {
-                setPopped(false);
-              }
+              if(myRef.current && !myRef.current.contains(e.relatedTarget))
+                dlgRef.current?.close()
             }
           }
           autoComplete="off"
-        />
-        {popped?
-            createPortal(<dialog ref={node=>{node?.show()}}>
-              <Calendar ref={calendarRef}
-                style={{
-                  position: pos.current.fixed ? "fixed" : "absolute"
-                  ,left: adjustCalendarPos(pos.current, calendarRef.current).x
-                  ,top: adjustCalendarPos(pos.current, calendarRef.current).y
-                }}
-                onMouseDown={()=>{
-                  clicked.current = true;
-                }}
-                onBlur={() => {
-                  //console.log('blur2',e, e.relatedTarget)
-                  //if(!document.getElementById('transient').contains(e.relatedTarget)) 
-                  //if(e.relatedTarget!==ref.current)
-                  //  setPopped(false);
-                }}
-                onClick={()=>{
-                  //console.log('cl')
-                }}
+        >
+        {/* eslint-disable-next-line click-events-have-key-events */}
+        <span slot="buttons"
+          onClick={()=>{
+            if(!props.readOnly && dlgRef.current) 
+              if(dlgRef.current.open) dlgRef.current.close();
+              else dlgRef.current.show(); 
+          }}
+        >C</span>
+        <dialog ref={dlgRef} style={{border: "none", padding: 0}}>
+              <Calendar
                 onChoose={(dt)=>{
-                  setPopped(false);
-                  //console.log(ref.current, dt, formatLocalDate(dt))
-                  if(myRef.current) 
-                    myRef.current.value = formatLocalDate(dt)
+                  dlgRef.current?.close();
+                  if(myRef.current) myRef.current.value = formatLocalDate(dt)
                   onChange?.(fakeEvent(props.name, dt.asDateString))
                   onBlur?.(fakeEvent(props.name))
                 }}
                 min={min} max={max}
-              /></dialog>
-          , document.getElementById('transient'))
-        : null}
-      </>
-      )
+        /></dialog>
+      </input-x>
 }
 
 export function EndlessDate({ref, ...props}) {

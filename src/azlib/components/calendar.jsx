@@ -99,7 +99,7 @@ export function Calendar({ref,onChoose,min,max,...props}) {
 	/* eslint-disable-next-line default-case */
 	switch(mode) {
 		case 'days':
-				return <div ref={ref} className={styles.container} {...props} tabIndex={1}>
+				return <div ref={ref} className={styles.container} {...props}>
 							<div className={styles.header}>
 								<Hbutton params={params} yearOffset={0} month={-1}>
 									≪
@@ -161,7 +161,7 @@ export function Calendar({ref,onChoose,min,max,...props}) {
 							</div>
 						</div>
 		case 'months':
-				return <div ref={ref} className={styles.container} {...props} tabIndex={1}>
+				return <div ref={ref} className={styles.container} {...props}>
 							<div className={styles.header}>
 								<Hbutton params={params} yearOffset={-1}>
 									≪
@@ -188,7 +188,7 @@ export function Calendar({ref,onChoose,min,max,...props}) {
 							}</div>
 						</div>
 		case 'years':
-				return <div ref={ref} className={styles.container} {...props} tabIndex={1}>
+				return <div ref={ref} className={styles.container} {...props}>
 							<div className={styles.header}>
 								<Hbutton params={params} yearOffset={-10}>
 									≪
@@ -227,7 +227,7 @@ export function Calendar({ref,onChoose,min,max,...props}) {
 							}</div>
 						</div>
 		case 'decades':
-				return <div ref={ref} className={styles.container} {...props} tabIndex={1}>
+				return <div ref={ref} className={styles.container} {...props}>
 							<div className={styles.header}>
 								<Hbutton params={params} yearOffset={-100}>
 									≪

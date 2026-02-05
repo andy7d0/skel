@@ -37,3 +37,80 @@ Object.produce = produce
 
 //strtotime
 //date
+
+window.customElements.define("button-x", class extends HTMLElement {
+    static formAssociated = true;
+    static observedAttributes = ['value', 'type'];
+
+    constructor()  {
+        super();
+        this.internals = this.attachInternals();
+        const shadow = this.attachShadow({ mode: "closed", delegatesFocus: true, cloneable: true  });
+        shadow.innerHTML = `<button style="
+                        display: inline-flex;
+                        width: 100%;
+                        align-content: center;
+                        justify-content: center;
+                    "><span><slot/></span></button>`
+        this.input = shadow.querySelector('button');
+    }
+    get form() { return this.internals.form; }
+    get type() { return this.input.type; }
+    set type(t) { this.input.type = t; }
+    get name() { return this.getAttribute('name'); }
+    set name(n) { this.setAttribute('name',n); this.input.name = n; }
+    get value() { return this.getAttribute('value'); }
+    set value(v) { this.setAttribute('value',v); this.internals.setFormValue(v); this.input.value = v;}
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === 'value') {
+          this.internals.setFormValue(newValue);
+          this.input.value = newValue;
+        }
+    }
+
+})
+
+window.customElements.define("input-x", class extends HTMLElement {
+    static formAssociated = true;
+    static observedAttributes = ['value','reserved'];
+
+    constructor() {
+        super();
+        this.internals = this.attachInternals();
+        const shadow = this.attachShadow({ mode: "closed", delegatesFocus: true, cloneable: true });
+        shadow.innerHTML = `<div style="display:inline-block; position: relative">
+                <input
+                    style="padding-right: 2em"
+                ><div style="display:inline-block; position:absolute; right:0"><slot name="buttons"></slot></div>
+                <div><slot></slot></div>
+            </div>`
+        this.input = shadow.querySelector('input');
+        this.input.addEventListener('input', this._onInput.bind(this))
+    }
+    _onInput(event) {
+        const value = event.target.value;
+        // Set the value to be submitted with the form
+        this.internals.setFormValue(value);
+        // Update validation status (e.g., must have at least 2 characters)
+        //this.updateValidity(value);
+    }
+    get form() { return this.internals.form; }
+    get value() { return this.input.value; }
+    set value(v) { this.input.value = v; }
+    get name() { return this.getAttribute('name'); }
+    set name(n) { this.setAttribute('name',n); }
+    get type() { return this.localName; }
+    get validity() { return this.internals.validity; }
+    get validationMessage() { return this.internals.validationMessage; }
+    get willValidate() {return this.internals.willValidate; }
+    checkValidity() { return this.internals.checkValidity(); }
+    reportValidity() { return this.internals.reportValidity(); }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        switch (name) {
+          case 'value': this.internals.setFormValue(newValue); break;
+          case 'reserved': this.input.style.paddingRight = newValue;
+        }
+    }
+})
