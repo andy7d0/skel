@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, useRef } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes,Route, Link} from "react-router-dom"
 
 import reactLogo from './assets/react.svg';
@@ -22,9 +22,6 @@ const IntApp = lazy(()=> import(
 
 function DefApp() {
   const [count, setCount] = useState(0);
-  const rr = useRef()
-
-  //if(false) console.log(aaa)
 
   return (
     <div className="App">
@@ -51,18 +48,12 @@ function DefApp() {
       </p>
 
       <p>
-        <button-x onClick={async ()=>{
+        <aligned-button align='center' onClick={async ()=>{
           DBG(await mtest())
-        }}>TEST</button-x>
+        }}>TEST</aligned-button>
       </p>
       <form onSubmit={()=> console.log(new FormData(event.target))} >
-      <p><input-x ref={rr} name="fff" value="lll" reserved="5em">
-          <button slot="buttons"
-          >B</button>
-          <span>body</span>
-          </input-x>
-      </p>
-      <button-x type="submit" name="ddd" value="33">kkk</button-x>
+      <aligned-button type="submit" name="ddd" value="33" align='left'>kkk</aligned-button>
       </form>
       <div>
       <Date />

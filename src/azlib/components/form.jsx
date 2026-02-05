@@ -624,7 +624,7 @@ export function Submit({value, confirm, prompt_to, prompt_caption, ...props}) {
 				mode
 				&& !form.submiting
 
-	return <button-x type="submit" disabled={!enabled}
+	return <aligned-button type="submit" disabled={!enabled}
 				{...props}
 				onClick={async e=>{
 					e.preventDefault()

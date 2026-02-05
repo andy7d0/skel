@@ -326,7 +326,7 @@ export function Date({ref, value, onChange, onBlur, min, max,...props}) {
   if(ref) ref.current = myRef.current
 
   return props.readOnly? <span input=''>{localValue}</span>
-      : <input-x {...htmlProps(props, myRef)} value={localValue} 
+      : <input-ext {...htmlProps(props, myRef)} value={localValue} 
           onKeyDown={()=>dlgRef.current?.close()}
           onChange={(e)=>{
             setLocalValue(e.target.value)
@@ -370,7 +370,7 @@ export function Date({ref, value, onChange, onBlur, min, max,...props}) {
                 }}
                 min={min} max={max}
         /></dialog>
-      </input-x>
+      </input-ext>
 }
 
 export function EndlessDate({ref, ...props}) {
@@ -398,14 +398,14 @@ export function Prompt({ref, name, value, onChange, onBlur
   const trigger = children? applyEx(children,value,name)
         : applyPlaceholder(value, placeholder)
   
-  return props.readOnly? <span button='' ref={ref}>{trigger}</span>: <button-x ref={ref}
+  return props.readOnly? <span button='' ref={ref}>{trigger}</span>: <aligned-button ref={ref}
     onClick={async ()=>{
         if(readOnly) return;
         let n = await (multilne?prompt:promptBig)(caption, value, required)
         onChange?.(fakeEvent(name,n))
         onBlur?.(fakeEvent(name))
     }} 
-    {...htmlProps(props)}>{trigger}</button-x>
+    {...htmlProps(props)}>{trigger}</aligned-button>
 }
 
 
@@ -423,11 +423,11 @@ export function Popup ({ref, name, value, onChange, onBlur
   let decoded_value = applyEx(decode,value)
   return <PopupModal ref={ref}
             trigger={ trigger
-            	?? <button-x 
+            	?? <aligned-button 
                           className="select"
                           readOnly={props.readOnly}
                           title={title}
-                >{applyPlaceholder(decoded_value, props.readOnly?empty:placeholder)}</button-x>
+                >{applyPlaceholder(decoded_value, props.readOnly?empty:placeholder)}</aligned-button>
               }
             onClose={async value=>{
               if(value===undefined) return;
@@ -466,7 +466,7 @@ export function InlineSelect ({ref, data, name, value, onChange, onBlur
         Object.entries(data)
         .filter(([k])=>k!=='') // skip empty val
         .map( ([k,v]) => 
-            <button-x name={name} key={k} value={k}
+            <aligned-button name={name} key={k} value={k}
                   className={value === k? 'selected' : null} 
                   onClick={(e) => {
                     if(readOnly) return;
@@ -475,7 +475,7 @@ export function InlineSelect ({ref, data, name, value, onChange, onBlur
                       ))
                     onBlur?.(e)
                   }} 
-            >{v}</button-x> 
+            >{v}</aligned-button> 
         )
       }
     </span>
@@ -676,12 +676,12 @@ export function File({value, name, readOnly, onChange, onBlur
         <div className="flexBox gap">
             <FileLink name={name} value={value} />
             {!readOnly && value &&
-                <button-x name={name}
+                <aligned-button name={name}
                         onClick={async ()=>{
                             await confirm('Удалить?', true)
                             onChange?.(fakeEvent(name,null))
                         }}
-                >Удалить файл</button-x>}
+                >Удалить файл</aligned-button>}
             {!readOnly &&  <label className="button">
                 {value? 'Заменить файл':'Выберите файл'}
                 <input type="file" {...props}
@@ -713,12 +713,12 @@ export function Pdf({value, name, readOnly, onChange, onBlur
         <div className="flexBox gap">
             <FileLink name={name} value={value} />
             {!readOnly && value &&
-                <button-x name={name}
+                <aligned-button name={name}
                         onClick={async ()=>{
                             await confirm('Удалить?', true)
                             onChange?.(fakeEvent(name,null))
                         }}
-                >Удалить файл</button-x>}
+                >Удалить файл</aligned-button>}
             {!readOnly &&  <label className="button">
                 {value? 'Заменить файл':'Выберите файл'}
                 <input type="file" {...props}
@@ -905,12 +905,12 @@ Array.Add = function({element, prompt, unique, uniqueMessage, small
     && (max === undefined || Object.keys(actx.value??[]).length < max)
     && (
       element?.({
-          trigger: <button-x className={css.arrayAdd} small={htmlBool(small)} {...props} />
+          trigger: <aligned-button className={css.arrayAdd} small={htmlBool(small)} {...props} />
           , required: true
           , onChange: e=>{ doAdd(e.target.value) }
         }) 
       ||
-      prompt && <button-x className={css.arrayAdd} small={htmlBool(small)} {...props} 
+      prompt && <aligned-button className={css.arrayAdd} small={htmlBool(small)} {...props} 
         onClick={async ()=>{
           try{
             const item = await applyEx(prompt, actx)
@@ -931,7 +931,7 @@ Array.Del = function({confirm,small,hookDelete, ...props}) {
   if(confirm === true) confirm = 'удалить?';
   const cfunc = typeof confirm === 'string'? async () => await confirm(confirm)
                 : confirm
-  return !actx.readyOnly && <button-x className={css.arrayDel} small={htmlBool(small)}
+  return !actx.readyOnly && <aligned-button className={css.arrayDel} small={htmlBool(small)}
         onClick={async ()=>{
           if(!cfunc || await cfunc()) {
             const defaultDoDelete = (actx, index) => {

@@ -38,19 +38,21 @@ Object.produce = produce
 //strtotime
 //date
 
-window.customElements.define("button-x", class extends HTMLElement {
+window.customElements.define("aligned-button", class extends HTMLElement {
     static formAssociated = true;
-    static observedAttributes = ['value', 'type'];
+    static observedAttributes = ['value', 'type', 'align', ''];
 
     constructor()  {
         super();
         this.internals = this.attachInternals();
         const shadow = this.attachShadow({ mode: "closed", delegatesFocus: true, cloneable: true  });
+        const va = this.getAttribute('vertical-align') || 'center'; 
+        const ha = this.getAttribute('align') || 'center';
         shadow.innerHTML = `<button style="
                         display: inline-flex;
                         width: 100%;
-                        align-content: center;
-                        justify-content: center;
+                        justify-content: ${ha};
+                        align-content: ${va};
                     "><span><slot/></span></button>`
         this.input = shadow.querySelector('button');
     }
@@ -63,15 +65,18 @@ window.customElements.define("button-x", class extends HTMLElement {
     set value(v) { this.setAttribute('value',v); this.internals.setFormValue(v); this.input.value = v;}
 
     attributeChangedCallback(name, oldValue, newValue) {
-        if (name === 'value') {
-          this.internals.setFormValue(newValue);
-          this.input.value = newValue;
+        switch (name) {
+        case  'value':  this.internals.setFormValue(newValue);
+                        this.input.value = newValue;
+                        break;
+        case 'align': this.input.style.justifyContent = newValue || 'center'; break;
+        case 'vertical-align': this.input.style.alignContent = newValue || 'center'; break;
         }
     }
 
 })
 
-window.customElements.define("input-x", class extends HTMLElement {
+window.customElements.define("input-ext", class extends HTMLElement {
     static formAssociated = true;
     static observedAttributes = ['value','reserved'];
 

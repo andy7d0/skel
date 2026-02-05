@@ -264,7 +264,7 @@ export function PopupModal({
 
 export function TriggerButton({props}) {
 	return handlers=>props.readOnly? <span>props.children</span>
-			: <button-x {...handlers} {...props} />
+			: <aligned-button {...handlers} {...props} />
 }
 PopupModal.Button = TriggerButton;
 
@@ -279,7 +279,7 @@ export function ModalLink(props) {
 
 export function ModalButton(props) {
 	const close = useModalContext();
-	return <button-x className={css.modalButton}
+	return <aligned-button className={css.modalButton}
 		{...props}
 		onClick={(e)=>{
 			props.onClick?.(e)
@@ -290,7 +290,7 @@ export function ModalButton(props) {
 
 export function Cancel(props) {
 	const close = useModalContext();
-	return <button-x className={css.modalButton}
+	return <aligned-button className={css.modalButton}
 		{...props}
 		onClick={(e)=>{
 			props.onClick?.(e)
