@@ -126,6 +126,8 @@ function FormInt({initial, name, value, onChange, readOnly
 	const actualErrors = 
 		validationResult?.values === values? validationResult.errors : instantErrors;
 
+	console.log('e', instantErrors)
+
 	const [touched, setTouched] = useState({})
 
 	// form can be modal and it's common case
@@ -212,7 +214,8 @@ function FormInt({initial, name, value, onChange, readOnly
 
 	const validate = useCallback((values, initial) => {
 					try {
-						const errors = validator?.(values, initial)
+						const errors = schemaInstance?.validate?.(values)
+										?? validator?.(values, initial)
 						setValidationResult({values,errors})
 						return errors;
 					} catch(e) { 
@@ -220,13 +223,13 @@ function FormInt({initial, name, value, onChange, readOnly
 						setValidationResult({values,errors});
 						return errors;
 					}
-				},[validator, setValidationResult])
+				},[validator, setValidationResult, schemaInstance])
 
 
 	const [revalidate, setRevalidate ] = useState()
 	const requestValidation = useCallback(
-		() => setRevalidate(()=>()=>validate(values, initial))
-		, [setRevalidate, validate, values, initial])
+		() => setRevalidate(()=>()=>validate(values))
+		, [setRevalidate, validate, values])
 
 	const lastRevalidate = useRef(0)
 	useEffect(()=>{
@@ -247,9 +250,9 @@ function FormInt({initial, name, value, onChange, readOnly
 			try {
 				setSubmiting(true) //sync re-render here
 					// special action - do not check automatically
-				const doValidation = action !== action.toUpperCase() && action !== '_' 
+				const doValidation = needValidation(action) 
 				let errors = doValidation? 
-								await validate(toSubmit, initial) // null if no errors
+								await validate(toSubmit) // null if no errors
 								: null;
 				if(!errors) {
 					const {errors, values = toSubmit} 
@@ -276,7 +279,10 @@ function FormInt({initial, name, value, onChange, readOnly
 			} finally {
 				setSubmiting(false)
 			}
-		}, [setSubmiting, realAction, validate, values, initial, setValidationResult, setValues, setTouched])
+		}, [setSubmiting, realAction, validate, values, setValidationResult, setValues, setTouched])
+
+	const actions = useMemo(()=>schemaInstance?.actions, [schemaInstance])
+
 
 	// forms always block submit/reset form handlers and rely on global one solely
 	// also block 'enter' from sending!!! //TODO: allow 'enter' with option
@@ -308,13 +314,14 @@ function FormInt({initial, name, value, onChange, readOnly
 	const form = useMemo(()=>({ 
 				values, initial
 				, annotations
-				, error:errorsToShow, validOwned: !errorsToShow
+				, errors:errorsToShow, validOwned: !errorsToShow
 				, valid: !actualErrors, remoteValid: validationResult?.remote
 				, touched
 				, submiting, submit
 				, setFieldValue, setFieldTouched
 				, validated: validationResult?.values === values
 				, setErrorsMarkers, lostErrors
+				, actions
 			})
 			, [values, initial
 				, annotations
@@ -324,6 +331,7 @@ function FormInt({initial, name, value, onChange, readOnly
 				, setFieldValue, setFieldTouched
 				, validationResult
 				, setErrorsMarkers, lostErrors
+				, actions
 			  ]
 		)
 
@@ -498,12 +506,9 @@ state.
 	даты можно превращать в NaN
 */
 
-export function Error({untouched, errorDecoder, ...props}) {
+export function Error({untouched, errorDecoder = commonErrorDecoder, ...props}) {
 	const field = useField(props);
 	const {form,name} = field;
-
-	// suppressor suppress whole subtree!
-	// so all subpaths of name need to be checked
 
 	const visible = field.cmode >= CMODE.E
 
@@ -516,7 +521,7 @@ export function Error({untouched, errorDecoder, ...props}) {
 	if(!visible) return;
 
 	const error = getValueByPath(form.errors, name);
-	const decoded = (errorDecoder??commonErrorDecoder)(error);
+	const decoded = error && errorDecoder(error);
 
 	if(
 	    error
@@ -545,7 +550,7 @@ export function ErrorAbsorber(){
 export function FullField({
 		label
 	  	, tip, border = true
-		, error, errorProps, errorDecoder, untouched
+		, error = true , errorProps, errorDecoder, untouched
 		, containerProps, flex, unit, footnote
 		, ...props}) {
 	const field = useField(props)
@@ -581,7 +586,7 @@ export function LikeField({name,
 		label
 	  	, tip, border = true, required
 		, containerProps, flex, unit, footnote
-		, error, errorProps, errorDecoder
+		, error = true, errorProps, errorDecoder
 		, children}) {
 	const deco = ( label || tip || error || containerProps || flex ) && border
 	const requireMark =  deco && required
@@ -646,11 +651,34 @@ Form.Submit = Submit;
 
 Form.Cancel = Cancel;
 
+function needValidation(action) {
+	return action !== action.toUpperCase() && action !== '_';
+}
+
+// custom controls for actions
+// they can't be in schema, as schema is client+server js
+// but they can be prop
+
+export function AutoActions(props) {
+	const form = useFormContext()
+	const applicableActions = 
+		Object.entries(form.actions??{})
+		.filter(([i,a])=>
+			(!a.dirty || form.dirty)
+			&&
+			(needValidation(i) && form.valid)
+			// TODO: check if action placed somewhere else
+			// TODO: client action check!!! (maybe, in schema)
+		)
+	return applicableActions.map(([i,a])=>
+			props[i]?.(a, i) ?? <Submit key={i} value={i}>{a.label}</Submit> 
+		)
+}
+
 export function SubmitReady({children}) {
 	const form = useFormContext()
 	return form.validated && form.remoteStatus.valid && children
 }
-Form.SubmitReady = SubmitReady;
 
 export function HasErrors({children}) {
 	const form = useFormContext()

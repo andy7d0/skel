@@ -388,7 +388,7 @@ function applyMasters(stack, model) {
 			return null
 		}
 	}
-	return digSchema(applyMasters, stack, model)
+	return digSchema(applyMasters, stack, model, current, Object.is)
 								 //{a,x:{b,c}}    {a,x}
 }
 
@@ -462,12 +462,8 @@ function performCheck(goal, stack, model) {
 	if('debug' in model) 
 		console.log(model.debug)
 
-	const digged = digSchema(performCheck.bind(undefined,goal), stack, model)
-	if(digged === current) {
-		// no errors!!!
-		return;
-	}
-	return digged; // digged = errors!
+	return digSchema(performCheck.bind(undefined,goal), stack, model
+		, undefined, (ret, _)=> ret === undefined)
 }
 
 
@@ -505,7 +501,7 @@ function callModelCrawler(func, stack, model, parentProxy) {
 
 // return current or somethig else
 // model should be proxied, it's crawler requirement
-function digSchema(func, stack, model) {
+function digSchema(func, stack, model, defaultRet, check) {
 	const current = stack(0)
 	// go depper
 	if(model.children) {
@@ -516,9 +512,9 @@ function digSchema(func, stack, model) {
 			const r = callModelCrawler(func, wrapStack(next, stack)
 									, model.children[k]
 									, model);
-			if(!Object.is(next,r)) { ret ??= {...current}; ret[k] = r; }
+			if(!check(r, next)) { ret ??= {...defaultRet}; ret[k] = r; }
 		}
-		return ret ?? current
+		return ret ?? defaultRet
 	} 
 	if(model.items && model.type === 'map') {
 		let ret
@@ -529,9 +525,9 @@ function digSchema(func, stack, model) {
 			const r = callModelCrawler(func, wrapStack(next, stack, k)
 						, model.items
 						, model);
-			if(!Object.is(next,r)) { ret ??= {...current}; ret[k] = r; }
+			if(!check(r, next)) { ret ??= {...defaultRet}; ret[k] = r; }
 		}
-		return ret ?? current
+		return ret ?? defaultRet
 	} 
 	if(model.items && model.type === 'array') {
 		let ret
@@ -542,11 +538,11 @@ function digSchema(func, stack, model) {
 			const r = callModelCrawler(func, wrapStack(next, stack, k)
 						, model.items
 						, model);
-			if(!Object.is(next,r)) { ret ??= [...current]; ret[k] = r; }
+			if(!check(r, next)) { ret ??= [...(defaultRet??[])]; ret[k] = r; }
 		}
-		return ret ?? current
+		return ret ?? defaultRet
 	} 
-	return current;
+	return defaultRet;
 }
 
 function isEmptyValue(current, empty = '') {

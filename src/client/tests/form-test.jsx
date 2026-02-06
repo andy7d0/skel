@@ -1,4 +1,4 @@
-import {Form,FullField,Ctrl, globalShowModal} from 'azlib/components/form'
+import {Form,FullField,Ctrl, globalShowModal, AutoActions} from 'azlib/components/form'
 //import {alert} from 'azlib/components/controls'
 import {BEGIN_SCHEMA, CMODE} from 'azlib/schema-checker'
 import * as CSM from 'azlib/schema-checker'
@@ -13,8 +13,8 @@ const TEST_SCM = BEGIN_SCHEMA
 	})
 	.MODEL({
 		test:CSM.object({access:CMODE.W}) ({
-				subfield: CSM.string({access: {initial: CMODE.W, submited: CMODE.R}
-					, debug: _ => _(0)
+				subfield: CSM.int({access: {initial: CMODE.W, submited: CMODE.R}
+					, max: 10
 				})
 			})
 	})
@@ -25,9 +25,9 @@ export async function mtest(){
 	return await globalShowModal(<Form
 		schema={TEST_SCM}
 	>
-		<FullField name="test.subfield" as={Ctrl.Str} label='test!'/>
+		<FullField name="test.subfield" as={Ctrl.Int} label='test!'/>
 
-		<Form.Submit value='233'>OK</Form.Submit>
-
+		<AutoActions />
+		
 	</Form>, {closeBy:"closerequest"})
 }
