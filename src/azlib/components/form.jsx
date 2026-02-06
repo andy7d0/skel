@@ -98,7 +98,7 @@ function FormInt({initial, name, value, onChange, readOnly
 
 	if(onChange) { console.assert(value === undefined, 'no value if controlled form') }
 
-	const [localValue, setLocalValue] = useState(initial) // use initial as local value
+	const [localValue, setLocalValue] = useState(initial??{}) // use initial as local value
 	// if onChange, use external values
 	const values = onChange? value : localValue
 
@@ -114,7 +114,6 @@ function FormInt({initial, name, value, onChange, readOnly
 	const setLocalValuesEx = useCallback(v => setLocalValue(values=>
 		 	modifyValues(Function.isFunction(v) ? v(values) :v ))
 		, [setLocalValue, modifyValues])
-	// eslint-disable-next-line exhaustive-deps
 	const setValues = onChange? setValuesEx : setLocalValuesEx;
 
 	// calculate instant errors when values changed
@@ -134,8 +133,10 @@ function FormInt({initial, name, value, onChange, readOnly
 
 	// default action from modal from is close
 	// eslint-disable-next-line exhaustive-deps
-	const realAction =  useCallback((cmd,values) => action? action(cmd, values) : close(values), [action, close]);
-
+	const realAction =  useCallback((cmd,values) => action
+			? action(cmd, values) 
+			: close(values) // TODO: cmd
+		, [action, close]);
 
 	const [submiting, setSubmiting] = useState(false)
 
@@ -167,7 +168,7 @@ function FormInt({initial, name, value, onChange, readOnly
 			}
 			return ret;
 		}
-		const ret = rec(actualErrors, annotations, ret)
+		const ret = rec(actualErrors, annotations)
 		setErrorsToShow(ret)
 
 		return () => setErrorsToShow(null)

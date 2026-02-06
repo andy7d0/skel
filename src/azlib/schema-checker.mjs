@@ -5,7 +5,7 @@ import {produce} from 'immer'
  * 
  * genetare schema and check it
  * 
- * SCHEMA is just an object
+ * MODEL is just an object
  * .prop: {conditions}
  * .prop: object({ checking-props }) ({subprops})
  * .prop: array({checks})({object-props})
@@ -44,12 +44,6 @@ import {produce} from 'immer'
  * 
  * conditional merge schema
  * ,[merge]: cond && {defs}
- * 
- * function check() {
- * 		checkSchema.apply(this, {
- 	* 		... can depends from this!!!!!
- * 		})
- * }
  * 
  * 
  * lex-friendly
@@ -127,32 +121,38 @@ export const BEGIN_SCHEMA = {
 			, MODEL(model_def) {
 				return { ...this
 					, schema: { ...this.schema
-						, model: Function.isFunction(model_def)? mergeDefinitions(model_def) 
-									: () => mergeDefinitions(model_def)
+						, model: Function.isFunction(model_def)? model_def 
+									: () => model_def
 					}
 				}
 			}
 			, ACTIONS(actions_def) {
-				return {
-					schema: { ...this.schema
-						, actions: Function.isFunction(actions_def)? mergeDefinitions(actions_def) 
-									: () => mergeDefinitions(actions_def)
+				return { ...this
+					, schema: { ...this.schema
+						, actions: Function.isFunction(actions_def)? actions_def 
+									: () => actions_def
 					}
 				}
 			}
-			, get END_SCHEMA() { 
+			, END_SCHEMA() { 
 				return (values, maxCMODE) => {
 					const schema = this.schema;
 					const states = schema.states?.(values) ?? {}
-					const actions = schema.actions?.(values) ?? {}
-							.filert(action=>!action.access || reduce_access(states, action.access))
-					const goals = Object.values(actions)
-							.map(action=>action.goal).filter(Boolean)
-					const raw_model = (schema.model?.(values) ?? {})
-					const model = produce({children:raw_model}, draft=> {mutate_model(draft, states, goals, maxCMODE)})
-					model.root = model
+					const actions = mergeDefinitions(schema.actions?.(values) ?? {})
+					const accessibleActions = {}
+					for(const i in actions) {
+						if(actions[i].access !== undefined
+							&& !reduce_access(states, actions[i].access)) continue;
+						accessibleActions[i] = actions[i];
+					}
+					const goals = Object.values(accessibleActions)
+							.map(action=>action.goal)
+							.filter(Boolean)
+					const raw_model = mergeDefinitions(schema.model?.(values) ?? {})
+					const model = produce({children:raw_model, access: maxCMODE}
+						, draft=> {mutate_model(draft, states, goals, maxCMODE)})
 					return {
-						actions
+						actions: accessibleActions
 						, model
 						, annotateValues(values) { return annotateValues(values, model) }
 						, modifyValues(values, initial) {
@@ -161,8 +161,9 @@ export const BEGIN_SCHEMA = {
 							return values
 						}
 						, validate: (values, goal = goals) => callModelCrawler(
-														performCheck.bind(undefined,goal)
-													, wrapStack(values), model)
+													performCheck.bind(undefined,goal)
+													, wrapStack(values)
+													, model)
 					}
 				}
 			}
@@ -177,16 +178,14 @@ export const BEGIN_SCHEMA = {
 		[merge] = submodel-here  -- expand submodel in upper level with deep merge
 	}
 	actions:
-	[
+	{
 	...actions -- append actions
-	]
-	todo: change action(s) props
-	there is NO action id, so, no merge by default, but if id provided ...
+	}
 
 */
 
 /*
-	actual_states - current state according to value
+	states - current state according to value
 	goals - planned states according to applicable actions
 
 	validate checs required with all possible goals
@@ -219,9 +218,10 @@ function mutate_model(draft, states, goals, maxCMODE) {
 		draft.requiredFor = new Set(goals_req)
 	}
 	if(draft.children) {
-		mutate_model(draft.children, states, goals, draft.access)
-		for(const i in draft.children)
+		for(const i in draft.children) {
+			mutate_model(draft.children[i], states, goals, draft.access)
 			draft.accessMin = Math.min(draft.accessMin, draft.children[i].accessMin)
+		}
 	}
 	if(draft.items) {
 		mutate_model(draft.items, states, goals, draft.access)
@@ -229,28 +229,28 @@ function mutate_model(draft, states, goals, maxCMODE) {
 	}
 }
 
-function reduce_access(actual_states, access) {
+function reduce_access(states, access) {
 	if(access !== Object(access)) return access; // simple leaf
 	let r = null; // default access (for all states)
 	for(const i in access) {
-		if(!(i in actual_states)) continue;
+		if(!(i in states)) continue;
 		const a = access[i]
 		const c = a === Object(a) 
-						? reduce_access(actual_states[i], a)
+						? reduce_access(states[i], a)
 						: a;
 		r = Math.max(r, c)
 	}
 	return  r ?? access['_'];
 }
 
-function reduce_require(actual_states, require) {
+function reduce_require(states, require) {
 	if(require !== Object(require)) return require; // simple leaf
 	let r = Number.POSITIVE_INFINITY; // default require
 	for(const i in require) {
-		if(!(i in actual_states)) continue;
+		if(!(i in states)) continue;
 		const a = require[i]
 		const c = a === Object(a) 
-						? require(actual_states[i], a)
+						? require(states[i], a)
 						: a;
 		r = Math.min(r,c)
 	}
@@ -379,9 +379,8 @@ function enforceRO(value, initial, model) {
 	return ret ?? value;
 }
 
-// use raw model not a model instance
 function applyMasters(stack, model) {
-	const [current] = stack;
+	const current = stack(0);
 	if(model.access < CMODE.W) return current;
 	if(isEmptyValue(current)) return current; // already empty
 	if('master' in model) { // has master
@@ -393,13 +392,14 @@ function applyMasters(stack, model) {
 								 //{a,x:{b,c}}    {a,x}
 }
 
+//  model should be proxied(!!!!!!!!)
 function performCheck(goal, stack, model) {
 
 	if('calculated' in model) {
 		stack = [model.calculated, ...stack.slice(1)]
 	}
 
-	const [current] = stack;
+	const current = stack(0);
 
 	let master = false;
 	if('master' in model) { // has master
@@ -459,7 +459,10 @@ function performCheck(goal, stack, model) {
 		if(def === false) return '((check error))';
 	}
 
-	const digged = digSchema(performCheck, stack, model)
+	if('debug' in model) 
+		console.log(model.debug)
+
+	const digged = digSchema(performCheck.bind(undefined,goal), stack, model)
 	if(digged === current) {
 		// no errors!!!
 		return;
@@ -475,25 +478,33 @@ export function callable(func) {
 	return func;
 }
 
-function instantiateModelNode(stack, node, parentNode) {
+function instantiateModelNode(stack, baseModelNode, parentProxy) {
 	// TODO: cache instance
-	return new Proxy(node, {
-			get(target, name, receiver) {
-				if(name === 'parent') return parentNode;
-				const v = target[name]
+	return new Proxy({}, {
+			get(_target, name, receiver) {
+				if(name === 'parent') return parentProxy;
+				if(name === 'root') {
+					if(parentProxy) return parentProxy.root;
+					return receiver;
+				}
+				const v = baseModelNode[name]
 				if(Function.isFunction(v) && !v.keepCallable) {
 					return v(stack, receiver)
 				}
 				return v;
 			}
+			, has(_target, property) {
+				return property in baseModelNode;
+			} 
 		})
 }
 
-function callModelCrawler(func, stack, model, modelParent) {
-	return func(stack, instantiateModelNode(stack, model, modelParent));
+function callModelCrawler(func, stack, model, parentProxy) {
+	return func(stack, instantiateModelNode(stack, model, parentProxy));
 }
 
 // return current or somethig else
+// model should be proxied, it's crawler requirement
 function digSchema(func, stack, model) {
 	const current = stack(0)
 	// go depper
@@ -503,7 +514,8 @@ function digSchema(func, stack, model) {
 		for(const k in model.children) {
 			const next = current?.[k];
 			const r = callModelCrawler(func, wrapStack(next, stack)
-									, model.children[k], model);
+									, model.children[k]
+									, model);
 			if(!Object.is(next,r)) { ret ??= {...current}; ret[k] = r; }
 		}
 		return ret ?? current
@@ -515,7 +527,8 @@ function digSchema(func, stack, model) {
 		for(const k in current) {
 			const next = current[k];
 			const r = callModelCrawler(func, wrapStack(next, stack, k)
-						, model.items, model);
+						, model.items
+						, model);
 			if(!Object.is(next,r)) { ret ??= {...current}; ret[k] = r; }
 		}
 		return ret ?? current
@@ -527,7 +540,8 @@ function digSchema(func, stack, model) {
 		for(const [k,v] of Object.entries(current)) {
 			const next = v;
 			const r = callModelCrawler(func, wrapStack(next, stack, k)
-					, model.items, model);
+						, model.items
+						, model);
 			if(!Object.is(next,r)) { ret ??= [...current]; ret[k] = r; }
 		}
 		return ret ?? current
@@ -556,18 +570,18 @@ function wrapStack(current, parent, index) {
 }
 
 
-function annotateValues(stack, model, modelParent) {
+function annotateValues(stack, modelNode, parentProxy) {
 	return new Proxy(
-		() => instantiateModelNode(stack, model, modelParent)
+		() => instantiateModelNode(stack, modelNode, parentProxy)
 		, {
-		get(target, prop) {
-			if(model.children) {
+		get(target, prop, receiver) {
+			if(modelNode.children) {
 				return annotateValues( wrapStack(target[prop], target)
-						, model.children[prop], model)
+						, modelNode.children[prop], receiver)
 			}
-			if(model.items) {
+			if(modelNode.items) {
 				return annotateValues( wrapStack(target[prop], target, prop)
-					, model.items, model)
+					, modelNode.items, receiver)
 			}
 		}
 	})

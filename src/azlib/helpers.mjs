@@ -50,13 +50,13 @@ export const setter = {
   				: setter.array.replace(idx,value)
 } 
 
-setter.array.append = value=> a => [...a, value]
-setter.array.prepend = value=> a => [value, ...a]
+setter.array.append = value=> a => [...(a??[]), value]
+setter.array.prepend = value=> a => [value, ...(a??[])]
 setter.array.delete = idx=>
-				      typeof idx  === 'function' ? a=>(a??[]).filter(e=>!idx(e)) 
+				     	Function.isFunction(idx) ? a=>(a??[]).filter(e=>!idx(e)) 
 				      : a=>(a??[]).toSpliced(idx,1)
 setter.array.replace = (idx, value)=>
-				      typeof idx  === 'function' ? a=>(a??[]).map(e=>idx(e)? value: e) 
+				      Function.isFunction(idx) ? a=>(a??[]).map(e=>idx(e)? value: e) 
 				      : a=>(a??[]).toSpliced(idx,1, value)
 
 setter.array.swap = (idx1, idx2)=>
@@ -67,12 +67,12 @@ setter.array.swap = (idx1, idx2)=>
 export const cmp = (a,b) => (a > b) - (a < b);  
 
 cmp.selector = selector => 
-  		typeof selector  === 'function'?
+  		Function.isFunction(selector)?
                     (a,b) => cmp(selector(a), selector(b))
         : (a,b) => cmp(a[selector], b[selector])
 
 cmp.selector.desc = selector => 
-  		typeof selector  === 'function'?
+  		Function.isFunction(selector)?
                     (a,b) => cmp(selector(b), selector(a))
         : (a,b) => cmp(b[selector], a[selector])
 
@@ -148,7 +148,7 @@ export function wrapNotEmpty(value, code, placeholder) {
  * <Compoent prop="const" /> or <Component prop={(args)=>...code...} />
  */
 export const applyEx = (obj, ...args) =>
-		(typeof obj  === 'function' ? obj(...args) : obj); 
+		(Function.isFunction(obj) ? obj(...args) : obj); 
 
 
 /**
@@ -394,18 +394,20 @@ export function setValueByPath(values, name, value) {
 	if(!name) return value;
 	name = name.split('.');
 	const last = name.pop();
-	return produce(value, draft =>{
+	return produce(values, draft =>{
 		let d = draft
 		for(const n of name) {
 			d[n] ??= {}
 			d = d[n]
 		}
+		d ??= {} //TODO: arrays???
 		d[last] = value;
+		draft = {[last]:'111'};
 	})
 }
 
-export function setStateByPath(values, name, value) {
-	values(current => setValueByPath(current, name, value))
+export function setStateByPath(setFunc, name, value) {
+	setFunc(current => setValueByPath(current, name, value))
 }
 
 

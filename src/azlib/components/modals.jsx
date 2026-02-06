@@ -74,7 +74,7 @@ export function PopupFrame({className, children, ...props}) {
 // }
 
 
-const focusableSelector = "INPUT,TEXTAREA,SELECT,BUTTON";
+//const focusableSelector = "INPUT,TEXTAREA,SELECT,BUTTON";
 
 
 export function useModals() {
@@ -83,7 +83,6 @@ export function useModals() {
 	const showModal = useCallback((element, modalProps = {}, bindProps = {}, triggerElem = null) => {
 		const {
 			closeBox = false, closeBy = "any"
-			, toFocus = focusableSelector
 			, framed = true, className, style, width, height		
 		} = modalProps
 	
@@ -262,9 +261,9 @@ export function PopupModal({
 		})}</showModal.Portal>
 }
 
-export function TriggerButton({props}) {
-	return handlers=>props.readOnly? <span>props.children</span>
-			: <aligned-button {...handlers} {...props} />
+export function TriggerButton({readOnly,children}) {
+	return handlers=>readOnly? <span>{children}</span>
+			: <aligned-button {...handlers}>{children}</aligned-button>
 }
 PopupModal.Button = TriggerButton;
 

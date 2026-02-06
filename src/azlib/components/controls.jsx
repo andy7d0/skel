@@ -879,7 +879,7 @@ Array.Add = function({element, prompt, unique, uniqueMessage, small
   const doAdd = useCallback(async (item)=>{
       if(unique) {
         if(item.key) {
-          const set = new Set(actx.value.map(([k])=>k)) //FIXME: error? need keys
+          const set = new Set(actx.value?.map(([k])=>k)??[]) //FIXME: error? need keys
           const nu = item.key
           if(set.has(nu)) {
             if(uniqueMessage===true) await alert('Уже есть')
@@ -905,7 +905,7 @@ Array.Add = function({element, prompt, unique, uniqueMessage, small
           actx.onChange(fakeEvent(actx.name, setter.object[item.key](val)(actx.value)))
         } else {
           const val = item; 
-          actx.onChange(fakeEvent(actx.name,setter.array.append(val)(actx.value)))
+          actx.onChange(fakeEvent(actx.name, setter.array.append(val)(actx.value)))
         }
       }
       await (hookAdd??((def,...a)=>def(...a))) (defaultDoAdd, item, actx)
