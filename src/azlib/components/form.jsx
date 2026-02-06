@@ -126,7 +126,7 @@ function FormInt({initial, name, value, onChange, readOnly
 	const actualErrors = 
 		validationResult?.values === values? validationResult.errors : instantErrors;
 
-	console.log('e', instantErrors)
+	// console.log('e', instantErrors)
 
 	const [touched, setTouched] = useState({})
 
@@ -424,6 +424,9 @@ export function useField({name, as, ...props}) {
 				, value
 				, onChange: e => form.setFieldValue(e.target.name, e.target.value)
 				, onBlur: e => form.setFieldTouched(e.target.name)
+				, readOnly: !(nctx?.writeable && !props.readOnly && mode >= CMODE.W)
+				, required
+				//nullable???
 			}
 			, rest: props
 			, parent: nctx
@@ -475,7 +478,7 @@ export function Field(props) {
 
 	return field.visible && (
 	field.Component && <NameContext value={field}>
-			<field.Component {...field.handlers} />
+			<field.Component {...field.rest} {...field.handlers} />
 		</NameContext>
 	|| `-no as for ${field.name}-`)
 }

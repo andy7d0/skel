@@ -13,7 +13,7 @@ const TEST_SCM = BEGIN_SCHEMA
 	})
 	.MODEL({
 		test:CSM.object({access:CMODE.W}) ({
-				subfield: CSM.int({access: {initial: CMODE.W, submited: CMODE.R}
+				subfield: CSM.int({access: {initial: CMODE.R, submited: CMODE.R}
 					, max: 10
 				})
 			})
@@ -28,6 +28,6 @@ export async function mtest(){
 		<FullField name="test.subfield" as={Ctrl.Int} label='test!'/>
 
 		<AutoActions />
-		
+
 	</Form>, {closeBy:"closerequest"})
 }

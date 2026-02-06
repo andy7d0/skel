@@ -824,7 +824,7 @@ export function HtmlValue({value, ...props}) {
 const ArrayContext = createContext(null)
 const ArrayItemContext = createContext(null)
 
-export function Array({ref, name, value, onChange, filter, sort, when, readOnly, children}) {
+export function ArrayCtl({ref, name, value, onChange, filter, sort, when, readOnly, children}) {
   const ffilter = filter === true? ([k]) => !!k :
                 typeof filter === 'string'? ([_,v]) => !!getValueByPath(v,filter)
                 : filter ? ([_,v])=> !!filter(v)
@@ -852,7 +852,7 @@ export function Array({ref, name, value, onChange, filter, sort, when, readOnly,
   return <ArrayContext value={actx}>{children}</ArrayContext>;
 }
 
-Array.Item = ({children}) => {
+ArrayCtl.Item = ({children}) => {
   const actx = use(ArrayContext);
   return actx.array?.map(([k,v])=>
         (!actx.when || actx.when(k,v))
@@ -871,7 +871,7 @@ Array.Item = ({children}) => {
  *  { value: valueData } ===> append valueData as to plain array
  *  other                ===> { value: other }
  */
-Array.Add = function({element, prompt, unique, uniqueMessage, small
+ArrayCtl.Add = function({element, prompt, unique, uniqueMessage, small
       , max
       , hookAdd // (defaultDoAdd, value_to_add) => void 
     , ...props}) {
@@ -936,7 +936,7 @@ Array.Add = function({element, prompt, unique, uniqueMessage, small
 //<Add prompt={call-modal} >text+props</Add>
 //<Add as={modal-component} >trigger-body+props</Add>
 
-Array.Del = function({confirm,small,hookDelete, ...props}) {
+ArrayCtl.Del = function({confirm,small,hookDelete, ...props}) {
   const {actx, index} = use(ArrayItemContext);
   if(confirm === true) confirm = 'удалить?';
   const cfunc = typeof confirm === 'string'? async () => await confirm(confirm)
@@ -954,7 +954,7 @@ Array.Del = function({confirm,small,hookDelete, ...props}) {
     {...props} />
 }
 
-Array.Swap = function({small}) {
+ArrayCtl.Swap = function({small}) {
   const {actx, index} = use(ArrayItemContext);
   if(actx.readOnly || !actx.value || actx.length < 2) return;
 
@@ -971,7 +971,7 @@ Array.Swap = function({small}) {
     </>
 }
 
-Array.Fallback = function({children}) {
+ArrayCtl.Fallback = function({children}) {
   const actx = use(ArrayContext);
   const length = actx.when? 
         actx.value.filter(([k,v])=>actx.when(k,v))?.length
@@ -979,7 +979,7 @@ Array.Fallback = function({children}) {
   return !length && children;
 }
 
-Array.NotEmpty = function({children}) {
+ArrayCtl.NotEmpty = function({children}) {
   const actx = use(ArrayContext);
   const length = actx.when? 
         actx.value.filter(([k,v])=>actx.when(k,v))?.length
@@ -988,7 +988,7 @@ Array.NotEmpty = function({children}) {
 }
 
 
-Array.Index = function({offset = 1, children}){
+ArrayCtl.Index = function({offset = 1, children}){
   const {actx,index} = use(ArrayItemContext);
   const idx = actx.indexes[index] + offset
   return children? applyEx(children, idx) : idx
