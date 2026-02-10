@@ -1,14 +1,9 @@
-@value colors: "../../colors.module.css";
-
-@value  popup_background_color from colors;
-@value  main_text_color from colors;
-@value  popup_text_color from colors;
 @charset "UTF-8";
 
 .PopupFrame
 {
   padding: 2ex;
-  background: popup_background_color;
+  background: var(--popup_background_color);
   outline: none;
 }
 
@@ -94,13 +89,13 @@
 .alertBox > div:first-child
 , .confirmBox > div:first-child 
 {
-  color: main_text_color;
+  color: var(--main_text_color);
   margin-top: 1em;
   text-align: center;
 }
 
 .promptBox > header {
-  color: main_text_color;
+  color: var(--main_text_color);
   margin-top: 1ex;
   margin-bottom: 0.5em;
 }
@@ -115,7 +110,7 @@
 }
 
 .promptBox > footer {
-  color: main_text_color;
+  color: var(--main_text_color);
   margin-top: 1ex;
   margin-bottom: 0.5em;
 }

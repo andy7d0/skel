@@ -1,0 +1,282 @@
+
+input, textarea {
+  color: var(--main_input_color);
+}
+input {
+  padding: 0 0.5em;
+  border: 1px solid var(--grey_border);
+}
+:focus-visible
+{
+  outline: none;
+}
+input[type="text"][nullable] 
+, input:not([type])[nullable] 
+, textarea[nullable] 
+{
+  padding-right: 20px;
+}
+
+input::placeholder,
+textarea::placeholder,
+select::placeholder
+{
+  color: #ddd;
+}
+
+input[type="text"][nullable]:not([null]):not([readonly]) 
+, input:not([type])[nullable]:not([null]):not([readonly])
+, textarea[nullable]:not([null]):not([readonly])
+{
+  background-position:
+          calc(100% - 5px) calc(6px),
+          calc(100% - 5px) calc(12px),
+          100% 0;
+  background-size:
+          7px 5px
+          , 7px 5px
+;
+  background-repeat: no-repeat;
+}
+input[type="file"]{
+  min-height: 0;
+  padding: 0;
+}
+
+/* select with custom arror */
+select.plain {
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+
+  background: transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+select.plain::-ms-expand, select.customArrow::-ms-expand {
+  display: none !important;
+}
+
+option {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 90vw;
+}
+
+textarea, pre, select {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+
+/* make arrow and background */
+
+select.customArrow, span.customArrow {
+  background:
+          linear-gradient(45deg, transparent 50%, gray 50%)
+          , linear-gradient(135deg, gray 50%, transparent 50%)
+;
+  background-position:
+          calc(100% - 11px) calc(50%),
+          calc(100% - 6px) calc(50%),
+          100% 0;
+  background-size:
+          5px 5px
+          , 5px 5px
+;
+  color: var(--main_input_color);
+  background-repeat: no-repeat;
+
+  /* styling and reset */
+
+  padding: 1px 2px;
+  padding-right: 25px !important;
+
+  /* reset */
+
+  border-radius: 0;
+  margin: 0;
+  -webkit-box-sizing: border-box !important;
+  -moz-box-sizing: border-box !important;
+  box-sizing: border-box !important;
+
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+}
+
+button.plain {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+h1, h4, h6 {
+  font-family: Gilroy-Bold;
+  font-size: 40px;
+  color: rgba(33, 37, 41, 1);
+  margin: 0.2em 0;
+}
+h2, h3, h5{
+  font-family: Gilroy-Regular;
+}
+h2 {
+  color: rgba(1, 113, 176, 1);
+  font-size: 2em;
+}
+h3 {
+  text-align: center;
+  font-size: 2em;
+  font-weight: 300;
+  margin: 0.8em 0;
+}
+h4 {
+  font-size: 1.35em;
+}
+
+h5 {
+  font-size: 1.3em;
+}
+h6 {
+  font-size: 32px;
+}
+
+a[href], .link {
+  text-decoration: none;
+  font-weight: normal;
+  color: rgba(0, 113, 176, 1);
+}
+
+button {
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  appearance:none;
+
+  text-rendering: auto;
+  letter-spacing: normal;
+  word-spacing: normal;
+  line-height: normal; /* FIXME:?? */
+  text-transform: none;
+  text-indent: 0px;
+  text-shadow: none;
+  text-align: center;
+  cursor: pointer;
+  margin: 0em;
+  font: inherit;
+}
+/* begin custom checkbox */
+input[type=checkbox] {
+  padding: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  vertical-align: middle;
+  background: transparent;
+  font-size: 1.1em;
+  border-radius: 0.125em;
+  display: inline-block;
+  border: .125em solid var(--checkbox_color);
+  width: 0.9em !important;
+  height: 0.9em;
+  min-height: auto;
+  position: relative;
+}
+input[type=checkbox]:before,
+input[type=checkbox]:after {
+  content: "";
+  position: absolute;
+  background: var(--checkbox_color);
+  width: calc(.125em * 3);
+  height: .125em;
+  top: 50%;
+  left: 10%;
+  transform-origin: left center;
+}
+input[type=checkbox]:before {
+  transform: rotate(45deg) translate(calc(.125em / -2), calc(.125em / -2)) scaleX(0);
+  transition: transform 200ms ease-in 200ms;
+}
+input[type=checkbox]:after {
+  width: calc(.125em * 5);
+  transform: rotate(-45deg) translateY(calc(.125em * 2)) scaleX(0);
+  transform-origin: left center;
+  transition: transform 200ms ease-in;
+}
+input[type=checkbox]:checked:before {
+  transform: rotate(45deg) translate(calc(.125em / -2), calc(.125em / -2)) scaleX(1);
+  transition: transform 200ms ease-in;
+}
+input[type=checkbox]:checked:after {
+  width: calc(.125em * 5);
+  transform: rotate(-45deg) translateY(calc(.125em * 2)) scaleX(1);
+  transition: transform 200ms ease-out 200ms;
+}
+input[type=checkbox]:focus {
+  outline: calc(.125em / 2) dotted rgba(0, 0, 0, 0.25);
+}
+/* end custom checkbox */
+
+/* */
+samp {
+  font-family: inherit;
+  color: gray;
+}
+
+.flexBox {
+  display: flex !important;
+}
+.flexBoxWrap {
+  display: flex !important;
+  flex-flow: wrap;
+}
+.flexColumn {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.clearFloat {
+  clear: both;
+}
+
+.floatRight {
+  float: right;
+}
+
+.floatLeft {
+  float: left;
+}
+
+input[dirty] {
+  background: linear-gradient(#00ff0011,#00ff0011), linear-gradient(white,white);
+}
+
+span[input], pre[textarea], span[button] {
+  display: inline-block;
+}
+pre[textarea]{
+  font-family: Gilroy-SemiBold;
+  margin: 0;
+}
+.table {
+    display: table;
+    border-spacing: 0 2em;
+}
+.table > * {
+    display: table-row;
+}
+.table > * > * {
+    display: table-cell;
+}
+
+input[width], select[width] {
+  vertical-align: bottom;
+}
+
+table[border], .table[border] {
+  border-collapse: collapse;
+}
+
+[wide] { width: 100%; }

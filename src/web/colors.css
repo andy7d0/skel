@@ -1,0 +1,49 @@
+:root {
+ --scrollbar-width: 0;
+
+ --text_color: #676767;
+ --label_text_color: #000;
+ --main_background_color: #E9EBF3;
+ --popup_background_color: #fff;
+ --main_table_background_color: #F3F3F3;
+ --button_background_color: #467890;
+
+ --section_background_color: #9BBADB4D;
+ --black_text_color: #D9D9D9;
+ --header_text_color: #E6E8EB;
+
+ --main_link_color #F3F3F3; /* = main_table_background_color */
+ --main_text_color #000;
+ --main_input_color: #000;
+ --main_dark_text_color: #3C5773;
+ --popup_text_color: #000; /* = main_background_color */
+
+ --error_text_color: #E0716B;
+ --error_background_color: white;
+ --error_star_color #C7197C;
+
+ --table_border_color: #D1CFD7;
+
+ --selected_item_submenu_color: #6093E2;
+
+ --buttons_color: #0071B0;
+ --buttons_in_table: #9BBADB;
+ --select_button: #62AED8;
+ --grey_border: #AAAAAA;
+ --fg: #2e3138;
+ --primary: #255ff4;
+ --hover_text: #a3c0db;
+ --delete_background_color red;
+ --delete_text_color black;
+
+ --reset_background_color white;
+ --reset_text_color #0071B0;
+
+ --submit_background_color #0071B0;
+ --submit_text_color white;
+
+ --check_background_color #73cddc;
+ --check_text_color white;
+
+ --checkbox_color #48c;	
+}

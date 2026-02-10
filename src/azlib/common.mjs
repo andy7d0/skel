@@ -123,6 +123,12 @@ export async function getAPIparams() {
         }
 }
 
+export async function setAuthToken(token) {
+  await setKV('auth-token', token, await customStore())
+    // TODO: boadcast auth-token
+}
+
+
 export function isLocalServer() {
   return hostname === '127.1.2.1';  // hardcoded, KISS
 }
@@ -143,6 +149,25 @@ export function asProdServer(asProd) {
   if(asProd === undefined) return window.localStorage.getItem('dev-as-prod')
   if(asProd) window.localStorage.setItem('dev-as-prod', 'Y')
   else window.localStorage.removeItem('dev-as-prod')
+}
+
+export function api_url(url) {
+  if(url[0]!=='/') url = `/${url}`
+  if(!url.startsWith('/app/')) url = `/app/${url}`
+  if(url.startsWith('/app/common/')) {
+    const loc = window.location.href;
+    if(loc.startsWith('/app/int/')||loc.startsWith('/int/')) {
+      url = url.replace('/app/common/', '/app/int/')
+    } else
+    if(loc.startsWith('/app/par/')||loc.startsWith('/par/')) {
+      url = url.replace('/app/common/', '/app/par/')
+    } else
+    if(loc.startsWith('/app/ext/')||loc.startsWith('/ext/')) {
+      url = url.replace('/app/common/', '/app/ext/')
+    } else 
+      url = url.replace('/app/common/', '/app/ext/') // default!
+  }
+  return url;
 }
 
 
