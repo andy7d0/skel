@@ -1,0 +1,21 @@
+services:
+  ext_app: 
+    image: cosmtrek/air
+    user: ${S_UID}:${S_GID}
+    restart: ${RESTART_MODE}
+    network_mode: ${NET_MODE}
+#    ports:
+#      - ${HOST_LOOPBACK_IP}:3080:80
+    environment:
+      - TZ=Europe/Moscow
+      - GOCACHE=/go/cache
+      - GOPATH=/go/modules
+    working_dir: /go/app
+    volumes:
+      - ../..:/go/app
+      - ../../../../../workarea/cache/ext:/go/cache
+      - ../../../../../workarea/modules/ext:/go/modules
+      - ../../../../../dist/app/ext:/go/dist
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      - setup

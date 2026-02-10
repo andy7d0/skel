@@ -176,9 +176,13 @@ async function cache_upstream_version_dummy(r) {
 	else r.return(404,"Not Found")
 }
 
+function tick(_s) {
+}
+
 export default { test, index_and_bundle 
 , esia_args, esia_in
 , cache_test
 , cache_purge_local
 , cache_upstream_version_dummy
+, tick
 }

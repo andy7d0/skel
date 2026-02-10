@@ -10,9 +10,22 @@ rm -rf /top/workarea/sockets/pg/*
 
 mkdir -p /top/workarea/migration/dumps
 
-cat /top/app/ext/crontab /top/app/int/crontab > /top/workarea/crontab-both
+mkdir -p /top/workarea/cache/ext
+mkdir -p /top/workarea/cache/int
+mkdir -p /top/workarea/cache/par
 
-mkdir -p /top/workarea/pgadmin
+mkdir -p /top/workarea/modules/ext
+mkdir -p /top/workarea/modules/int
+mkdir -p /top/workarea/modules/
+
+mkdir -p /top/dist/web
+mkdir -p /top/dist/app/ext
+mkdir -p /top/dist/app/int
+
+
+# cat /top/app/ext/crontab /top/app/int/crontab > /top/workarea/crontab-both
+
+# mkdir -p /top/workarea/pgadmin
 
 # cat > /top/workarea/pgadmin/servers.json << EOF
 # {

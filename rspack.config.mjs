@@ -33,6 +33,9 @@ if(!isDev){
 
 export default defineConfig({
   context: __dirname,
+  output: {
+    path: path.resolve(__dirname, 'dist/web'),
+  },
   devServer: {
     port: 3000,
     open: false, // open: ['/my-page', '/another-page']
@@ -59,7 +62,7 @@ export default defineConfig({
     ],
   },
   entry: {
-    main: './src/client/main.jsx',
+    main: './src/web/main.jsx',
   },
   resolve: {
     extensions: ['.js', '.jsx', '.mjs'], //'.ts', '.tsx', 
@@ -120,7 +123,7 @@ export default defineConfig({
       }),
     new OxLintWebpackPlugin(),
     new rspack.HtmlRspackPlugin({
-      template: './index.html',
+      template: './src/web/index.html',
     }),
     isDev ? new ReactRefreshRspackPlugin() : null,
     new rspack.CircularDependencyRspackPlugin({

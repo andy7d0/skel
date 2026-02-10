@@ -1,2 +1,0 @@
-# use imega/supercronic container
-* * * * * hx --unix-socket /var/www/sockets/local-web.socket GET http://web/minute/int > /dev/null

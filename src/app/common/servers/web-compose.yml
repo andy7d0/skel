@@ -4,7 +4,6 @@ services:
     user: ${S_UID}:${S_GID}
     restart: ${RESTART_MODE}
     network_mode: ${NET_MODE}
-    entrypoint: /etc/nginx/conf.d/nginx_start.sh
 #    ports:
 #      - ${HOST_LOOPBACK_IP}:3080:80
     environment:
@@ -12,9 +11,10 @@ services:
     volumes:
       - ./src/app/common/servers/web/etc/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./src/app/common/servers/web/etc/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./dist/spa:/var/www/html:ro
-      #- ./dist/app:/var/www/app:ro
+      - ./dist/web:/var/www/html:ro
       - ./workarea/sockets/web:/var/www/sockets
       - /etc/timezone:/etc/timezone:ro
+    entrypoint: /etc/nginx/conf.d/nginx_start.sh
     depends_on:
       - setup
+      - ext_app

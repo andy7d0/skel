@@ -2,7 +2,8 @@
 # web-app-docker-compose - в prod - двум  идентичным серверам ext/int app
 # 
 include:
-   - path: ./src/app/common/servers/web-app-compose.yml
+   - path: ./src/app/ext/servers/app/app-compose.yml
+   - path: ./src/app/common/servers/web-compose.yml
      project_directory: .
 
 services:
@@ -17,7 +18,7 @@ services:
     user: ${S_UID}:${S_GID}
     volumes:
       - .:/top 
-    command: /bin/sh /top/services/setup.sh
+    command: /bin/sh /top/setup.sh
 
   curl:
     image: alpine/curl
@@ -29,8 +30,6 @@ services:
     volumes:
       - .:/top 
     command: /bin/sh
-    depends_on:
-       - setup
 
   bun:
     image: oven/bun:1.3-alpine
