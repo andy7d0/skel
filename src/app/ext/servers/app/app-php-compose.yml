@@ -1,0 +1,24 @@
+services:
+  ext_app: 
+    build: 
+      context: ./php
+      network: host
+      args:
+         S_UID: ${S_UID}
+         S_GID: ${S_GID}
+    user: ${S_UID}:${S_GID}
+    restart: ${RESTART_MODE}
+    network_mode: ${NET_MODE}
+#    ports:
+#      - ${HOST_LOOPBACK_IP}:3080:80
+    environment:
+      - TZ=Europe/Moscow
+      - DIST=/dist
+    working_dir: /app
+    command: php app-main.php
+    volumes:
+      - ../..:/app
+      - ../../../../../dist/app/ext:/dist
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      - setup

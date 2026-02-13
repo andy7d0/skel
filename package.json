@@ -10,7 +10,8 @@
     "dev": "rspack dev",
     "check": "biome check --write",
     "format": "biome format --write",
-    "go-ext": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env run --entrypoint go ext_app"
+    "go-ext": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env run --remove-orphans  --rm -q --entrypoint go ext_app",
+    "php-ext": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env run --remove-orphans  --rm -q ext_app"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.18",

@@ -8,14 +8,15 @@ services:
 #      - ${HOST_LOOPBACK_IP}:3080:80
     environment:
       - TZ=Europe/Moscow
-      - GOCACHE=/go/cache
-      - GOPATH=/go/modules
-    working_dir: /go/app
+      - GOCACHE=/go-cache
+      - GOPATH=/go
+      - DIST=/dist
+    working_dir: /go/src
     volumes:
-      - ../..:/go/app
-      - ../../../../../workarea/cache/ext:/go/cache
-      - ../../../../../workarea/modules/ext:/go/modules
-      - ../../../../../dist/app/ext:/go/dist
+      - ../..:/go/src
+      - ../../../../../workarea/cache/ext:/go-cache
+      - ../../../../../workarea/modules/ext/pkg:/go/pkg
+      - ../../../../../dist/app/ext:/dist
       - /etc/timezone:/etc/timezone:ro
     depends_on:
       - setup
