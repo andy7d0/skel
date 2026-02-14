@@ -50,7 +50,7 @@ RUN apk add --no-cache --update autoconf \
     && yes no | pecl install inotify \
     && docker-php-ext-enable inotify
 
-RUN apk add --no-cache --update make
+RUN apk add --no-cache --update make rsync
 
 # NO NEED apcu ???
 
