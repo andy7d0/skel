@@ -15,10 +15,11 @@ services:
       - TZ=Europe/Moscow
       - DIST=/dist
     working_dir: /app
-    command: php app-main.php
+    command: /app/app-entrypoint.sh
     volumes:
       - ../..:/app
       - ../../../../../dist/app/ext:/dist
       - /etc/timezone:/etc/timezone:ro
+    init: true
     depends_on:
       - setup

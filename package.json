@@ -3,10 +3,11 @@
   "private": true,
   "version": "1.0.1",
   "scripts": {
+    "dev": "rspack dev",
     "up": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env up",
     "compose": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env",
     "lint": "oxlint",
-    "build": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" dev/scripts/build.sh",
+    "build": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" ./dev/scripts/build.sh",
     "go-ext": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env run --remove-orphans  --rm -q --entrypoint go ext_app",
     "php-ext": "S_UID=\"$(id -u)\" S_GID=\"$(id -g)\" docker compose -f docker-compose-top.yml --env-file compose-env run --remove-orphans  --rm -q ext_app"
   },

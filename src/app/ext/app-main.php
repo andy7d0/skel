@@ -3,66 +3,6 @@
 $http = new Swoole\Http\Server("0.0.0.0", 9580);
 
 
-class ManipStream {
-    var $file;
-    var $context;
-
-    function stream_open($path, $mode, $options, &$opened_path)
-    {
-        $url = substr($path, strlen('manip://'));
-        // error_log($url);
-        $this->file = fopen($url, $mode);
-
-        return true;
-    }
-
-    function stream_read($count)
-    {
-        return fread($this->file, $count);
-    }
-
-    function stream_write($data)
-    {
-        return false;
-    }
-
-    function stream_tell()
-    {
-        return ftell($this->file);
-    }
-
-    function stream_eof()
-    {
-        return feof($this->file);
-    }
-
-    function stream_seek($offset, $whence)
-    {
-        return fseek($this->file, $whence);
-    }
-
-    function stream_close() {
-        return fclose($this->file);
-    }
-    function stream_stat() {
-        return fstat($this->file);
-    }
-
-    function stream_metadata($path, $option, $var) 
-    {
-        return false;
-    }
-
-    function stream_set_option(int $option, int $arg1, int $arg2) {
-        // error_log(var_export($option, true));
-        // error_log(var_export($arg1, true));
-        // error_log(var_export($arg2, true));
-        return false;
-    }
-}
-
-stream_wrapper_register("manip", "ManipStream") or die("Failed to register protocol");
-
 
 $http->set([
     'max_coroutine' => 3000,
@@ -88,7 +28,7 @@ $http->set([
     // 'enable_delay_receive' ???
 
     // 'reload_async' dev/prod?
-    // 'max_wait_time' in dev?
+    'max_wait_time' => 0.1, // it is dev! TODO:prod
 
     'tcp_fastopen' => true, // def = false!
 
@@ -119,12 +59,56 @@ $http->set([
 
 ]);
 
-//$http->listen()
-
 $http->on('request', function ($request, $response) {
-    require_once 'manip://'.__DIR__.'/require-test.php';
+    safe_require_once(__DIR__.'/require-test.php');
     //error_log(__DIR__);
     $response->end("<h1>Hello Swoole. #".F()."</h1>");
 });
 
+$inotify_fd = inotify_init();
+
+$http->on('start', function() use($http) {
+    global $inotify_fd;
+
+    Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
+        // Read the events to clear the buffer
+        $events = inotify_read($fd); 
+        if ($events) {
+            error_log('!!!!!!!! changes !!!!!!!!!!!!');
+            // Trigger a graceful server reload when a change occurs
+            //$http->reload();  
+            $http->shutdown();  
+        }
+    });
+});
+
+error_log("\n------- app started ----------");
+
 $http->start();
+
+// --- helpers
+
+function safe_require_once($path) {
+    require_once($path);
+    critical_section(function(){
+        global $inotify_fd;
+        static $included = [];
+        $inc = get_included_files();
+        $diff = array_diff($inc, $included);
+        $included = $inc;
+        foreach($diff as $d) 
+            if(preg_match('#^/dist/#', $d))
+                $watch_descriptor = inotify_add_watch($inotify_fd
+                    , preg_replace('#^/dist/#', '/app/', $d)
+                    , IN_MODIFY);
+    });
+}
+
+function critical_section($func) {
+    $old = ini_set("swoole.enable_preemptive_scheduler", "0");
+    try{
+        $func();
+    } finally {
+        ini_set("swoole.enable_preemptive_scheduler", $old);
+    }
+}

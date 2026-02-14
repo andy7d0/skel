@@ -3,6 +3,7 @@ services:
     image:  nginx:1.29.4-alpine
     user: ${S_UID}:${S_GID}
     restart: ${RESTART_MODE}
+    stop_signal: SIGTERM
     network_mode: ${NET_MODE}
 #    ports:
 #      - ${HOST_LOOPBACK_IP}:3080:80
@@ -15,6 +16,7 @@ services:
       - ./workarea/sockets/web:/var/www/sockets
       - /etc/timezone:/etc/timezone:ro
     entrypoint: /etc/nginx/conf.d/nginx_start.sh
+    init: true
     depends_on:
       - setup
       - ext_app
