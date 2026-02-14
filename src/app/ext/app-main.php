@@ -1,9 +1,5 @@
 <?php
 
-
-
-
-
 $http = new Swoole\Http\Server("0.0.0.0", 9580);
 
 

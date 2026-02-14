@@ -4,6 +4,7 @@
 
 set -e
 
+echo 
 echo '<<<<<<<< sync dist >>>>>>>>>>>>>>>>'
 echo
 
