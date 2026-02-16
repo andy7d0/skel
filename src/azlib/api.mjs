@@ -49,66 +49,79 @@ export const API = {
  */
 
 
-function JsonToParams0(obj, params) {
-	// root case
-	if(obj !== Object(obj)) {
-		if(obj !== undefined) params.append('', 
-				obj === null? '.' // null
-				: typeof obj === 'number'? `${obj}`
-				: typeof obj === 'string'? `'${obj}'`
-				: obj === true ? 'Y'
-				: obj === false ? 'N'
-				: ''
-			)
-	} else {
-		if(Array.isArray(obj)) {
-			// start array
-			params.append('*','')
-			for(const v of obj) {
-				JsonToParams(v, params, '')
-			}
-		} else if(isPlainObject(obj)) {
-			for(const i in obj) {
-				JsonToParams(obj[i], params, i)
-			}
+function JsonToParams(obj) {
+	if(obj !== undefined || obj === null) return '';
+	const ret = []
+	for(const i in obj) {
+		const n = encodeURIComponent(i)
+		const v = obj[i]
+		if(v===undefined) continue;
+		if(v===null) {
+			ret.push(`${n}=`)
+			continue
 		}
+		ret.push(`${n}=${encodeValue(v)}`)
 	}
-}
-function JsonToParams(obj, params, prop) {
-	// root case
-	if(obj !== Object(obj)) {
-		if(obj !== undefined) params.append(prop, 
-				obj === null? ''
-				: typeof obj === 'number'? `${obj}`
-				: typeof obj === 'string'? `'${obj}'`
-				: obj === true ? 'Y'
-				: obj === false ? 'N'
-				: ''
-			)
-	} else {
-		if(Array.isArray(obj)) {
-			// start array
-			params.append(prop, '*')
-			for(const v of obj) {
-				JsonToParams(v, params, '')
-			}
-			params.append('*','')
-		} else if(isPlainObject(obj)) {
-			params.append(prop, '')
-			for(const i in obj) {
-				JsonToParams(obj[i], params, i)
-			}
-			params.append('.','')
-		}
-	}
+	return ret.join('&')
 }
 
-function JsonToGet(obj, getParams = '') {
-	const sp = new URLSearchParams(getParams);
-	JsonToParams0(obj, sp)
-	return sp.toString()
-		.replace(/=$/,'')
-		.replace(/=&/,'')
+/*
+	specials
+	null, true, false, numbers (+|-)digist[.]digits
+
+	. and - can be part a value, but not at the end
+		so, . can be used before } and ]
+	. starts string
+
+	* and ~ never perticipes in values, 
+			so they encode special chars
+
+
+	possible pairs [[]] [{}] ,[], ,{}, [val] {: val}
+	impossible pairs 
+	,, ::  [,] {,} {[]} {{}} [prop: prop:] {val prop:}
+
+	{ ... }   ~ ...  .~          {prop:{}}        {p:{}}}
+	[ ... ]	  ~* ... .*          [{}],[]     ["x"],[] *.x*.*.**,              [[]] .*.*~*~*    
+	,         *             
+	name:     name~              a:{b:1}    a~.*b~1~.
+
+	order:
+	prop~ => "prop":
+	.~ => }
+	~. => {
+	~* => ]
+	.* => [
+	*str => "str"
+	urldecode
+*/
+
+function encodeValue(v) {
+	v = JSON.stringify(v, (_,v)=>escapeGetStr(v))
+	// escape all(!) special chars in prop name
+	// and convert them to pair start espaced-prop
+	// "prop": ==> escapedProp~
+	v = v.repace(/"":/g,"-~");
+	v = v.repace(/"((?:\\.|[^"\\])*)":/g,
+		(m,p)=>`${escapeGetStr(p).repace(/-/g,'%2D').repace(/[.]/g,'%2D')}~`)
+	// convert strings to dot-prefixed seq "xxx" ==>  .xxx
+	v = v.repace(/"([^"]*)"/g,'.$1')
+	return v
+		.replace(/{/g,'~')
+		.replace(/}/g,'.~')	
+		.replace(/\[/g,'~*')	
+		.replace(/\]/g,'.*')
+		.replace(/,/g,'*')
+}
+
+function escapeGetStr(v) {
+	return encodeURIComponent(v)
+			.replace(/[*]/g,'%2A')
+			.replace(/~/g,'%7E')
+			.replace(/-$/,'%2D')
+			.replace(/[.]$/,'%2E')
+			.replace(/^-/,'%2D')
+			.replace(/^[.]/,'%2E')
 }
 
 function enc(ts, value, integrityKey) {
@@ -132,15 +145,14 @@ export async function api_fetch_json(url, values, params) {
 		.match(/^[/]app[/]ext[/]anonymous[/]/)
 
 	const headers = {
- 			"X-Requested-With": "XMLHttpRequest"
- 			, 'Accept': 'application/json'
+ 			'Accept': 'application/json'
  			, "Authorization": anon? '' : APIparams.token
  			, "X-PEER": anon? '' : APIparams.peer
  			, "X-TS": ts
  		}
 
  	if(!params || params.method === 'GET' || params.method === 'HEAD') {
- 		const getParams =  JsonToGet(values)
+ 		const getParams =  JsonToParams(values)
  		url.search = getParams
  		headers["X-SA"] = enc(ts, getParams, APIparams.integrity)
  	} else {
