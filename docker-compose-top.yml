@@ -3,7 +3,10 @@
 # 
 include:
    - path: ./src/app/ext/servers/app/app-php-compose.yml
+     project_directory: .
    - path: ./src/app/common/servers/web-compose.yml
+     project_directory: .
+   - path: ./databases/main_db/main-db-compose.yml
      project_directory: .
 
 services:

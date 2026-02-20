@@ -11,6 +11,7 @@ if [ "$1" = "images" ]; then
 
 	echo images built
 	exit;
+	
 fi
 
 rspack build

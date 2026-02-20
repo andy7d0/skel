@@ -10,7 +10,7 @@ dist/
 workarea/
 
 # conf
-compose-env
+/compose-env
 
 # Profile
 .rspack-profile-*/

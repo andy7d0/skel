@@ -5,11 +5,11 @@ export S_ZONE="${PWD##*/}"
 
 mkdir -p workarea/sockets/web
 mkdir -p workarea/sockets/app
-mkdir -p workarea/sockets/pg
+mkdir -p workarea/sockets/main_db
 
 rm -rf workarea/sockets/web/*
 rm -rf workarea/sockets/app/*
-rm -rf workarea/sockets/pg/*
+rm -rf workarea/sockets/main_db/*
 
 mkdir -p workarea/migration/dumps
 
