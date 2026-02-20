@@ -22,5 +22,3 @@ services:
       - ../../../../../dist/app/ext:/dist
       - /etc/timezone:/etc/timezone:ro
     init: true
-    depends_on:
-      - setup

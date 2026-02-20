@@ -18,5 +18,4 @@ services:
     entrypoint: /etc/nginx/conf.d/nginx_start.sh
     init: true
     depends_on:
-      - setup
       - ext_app

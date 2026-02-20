@@ -9,16 +9,6 @@ include:
 services:
   # dev containers runned once
   # make all volumes owned correctly
-  setup:
-    image: alpine
-    environment:
-      - S_UID=${S_UID}
-      - S_GID=${S_GID}
-      - S_PWD=${PWD}
-    user: ${S_UID}:${S_GID}
-    volumes:
-      - .:/top 
-    command: /bin/sh /top/setup.sh
 
   curl:
     image: alpine/curl
@@ -42,7 +32,6 @@ services:
     working_dir: /app
     entrypoint: bun run dev
     depends_on:
-       - setup
        - web
 
 
