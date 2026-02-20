@@ -1,0 +1,3 @@
+#!/bin/sh
+bun install
+# ./dev/scripts/compose run -rm ext_app composer i
