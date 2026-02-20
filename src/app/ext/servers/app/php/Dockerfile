@@ -54,9 +54,10 @@ RUN apk add --no-cache --update make rsync
 
 # NO NEED apcu ???
 
-
 ARG S_UID
 ARG S_GID
+
+COPY --chown=${S_UID}:${S_GID} . /build 
 
 # cache ? 
 # RUN mkdir -p /var/cache/sapp && chown ${S_UID}:${S_GID} /var/cache/sapp      

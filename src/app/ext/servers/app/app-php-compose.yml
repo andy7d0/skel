@@ -14,10 +14,11 @@ services:
     environment:
       - TZ=Europe/Moscow
       - DIST=/dist
-    working_dir: /app
-    command: /app/app-entrypoint.sh
+    working_dir: /build
+    command: ./app-entrypoint.sh
     volumes:
-      - ../..:/app
+      - ../..:/src
+      - ../../../../../dev/compile/build-api-entries-php/build-jsx:/build/build-jsx
       - ../../../../../dist/app/ext:/dist
       - /etc/timezone:/etc/timezone:ro
     init: true

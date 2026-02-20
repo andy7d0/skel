@@ -10,6 +10,7 @@ function F() {
 	return $x+2000;
 }
 
-\define_api_route(__FILE__, function($x){
+\define_api_route(function($x){
 	return $x;
-});
+}
+,__FILE__);

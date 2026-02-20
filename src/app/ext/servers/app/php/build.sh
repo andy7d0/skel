@@ -1,7 +1,5 @@
 #!/bin/sh
 
-[ "$PWD" = "/app" ] || exit 1
-
 set -e
 
 echo 
@@ -29,7 +27,7 @@ rsync \
 	--include='*.jsx' \
 	--exclude='*' \
 	-v \
-	/app/ /dist/
+	/src/ $DIST/
 
 	#-n \
 
@@ -39,7 +37,7 @@ echo
 echo '<<<<<<<< rebuild >>>>>>>>>>>>>>>>'
 echo
 
-make -C /dist -f /app/jsx-to-php.make all
+make -C $DIST -f $PWD/jsx-to-php.make all
 
 
 echo

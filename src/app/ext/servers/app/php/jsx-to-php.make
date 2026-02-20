@@ -19,8 +19,8 @@ $(MISSED) : FORCE
 	rm $@
 
 %.jsx.done : %.jsx
-	@echo DO $@
-	@touch $@
+	@echo DO $<
+	/build/build-jsx < $< > $@
 
 .PHONY: all FORCE
 

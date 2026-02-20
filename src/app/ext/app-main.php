@@ -3,7 +3,16 @@
 const SUBSYSTEM = 'ext';
 const __ROOTDIR__ = __DIR__;
 
+mb_internal_encoding("UTF-8");
+
+
 $http = new Swoole\Http\Server("0.0.0.0", 9580);
+
+define('APP_MODE',
+    file_exists('/src') ? 'dev'
+    :  (false ?'test' //TODO
+    : 'prod')
+);
 
 
 
@@ -63,6 +72,12 @@ $http->set([
 ]);
 
 $http->on('request', function ($request, $response) {
+
+    //TODO: define('__PEER__', @$_SERVER['HTTP_X_PEER']);
+    //TODO: @include __ROOT__.'/vendor/autoload.php';
+
+
+
     //error_log(@$request->server['query_string']??'---');
     //error_log(var_export($request->get, true));
     $path = $request->server['request_uri'];
@@ -77,10 +92,12 @@ $http->on('request', function ($request, $response) {
         return;                
     }
 
+    $api_index = "";
     if(preg_match('#~(\d+)$#', $path, $m)) {
         // api path
         // trim entry index 
         $request->server['api_index'] = $m[1];
+        $api_index = "~$m[1]";
         $path = preg_replace('#~\d+$#', '', $path);
     } else if(preg_match('#/([^/]+[.][^/]+)$#', $path)) {
         // file path (has ext)
@@ -95,18 +112,28 @@ $http->on('request', function ($request, $response) {
 
     $src_path = $path;
 
+    $suffixes = ['.entry.php', '.jsx.done'];
+
     $route = null;
     while($path !== '/') {
         //error_log($path);
-        $fpath = __DIR__."$path.entry.php";
-        $route = route_defined($fpath);
-        if($route) break;
-        if(file_exists($fpath)) {
-            safe_require_once($fpath);
-            $route = route_defined($fpath);
-            if($route) break;
-            $response->status(500, "$path.entry.php is not a route target");
-            return;
+        foreach($suffixes as $suffix) {
+            $fpath = __DIR__."$path$suffix";
+            $route = route_defined("$fpath$api_index");
+            if($route) goto found;
+            if(file_exists($fpath)) {
+                $vars = [];
+                if($suffix === '.jsx.done') {
+                    $api_reg = new API_ITEMS("$fpath");
+                    $vars = $api_reg->helpers();
+                }
+                safe_require_once($fpath, $vars);
+                $route = route_defined("$fpath$api_index");
+                if($route) goto found;
+                error_log("$path.$suffix is not a route target");
+                $response->status(500, "$path.$suffix is not a route target");
+                return;
+            }
         }
         $path = dirname($path);
     }
@@ -114,6 +141,7 @@ $http->on('request', function ($request, $response) {
         $response->status(404, 'no route');
         return;
     }
+    found:
 
     $request->server['path_info'] = substr($src_path, strlen($path));
     try {
@@ -137,21 +165,25 @@ $http->on('request', function ($request, $response) {
     }
 });
 
-$inotify_fd = inotify_init();
+$inotify_fd = APP_MODE === 'dev' ? inotify_init() : null;
+
 
 $http->on('start', function() use($http) {
     global $inotify_fd;
 
-    Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
-        // Read the events to clear the buffer
-        $events = inotify_read($fd); 
-        if ($events) {
-            error_log('!!!!!!!! changes !!!!!!!!!!!!');
-            // Trigger a graceful server reload when a change occurs
-            //$http->reload();  
-            $http->shutdown();  
-        }
-    });
+    if($inotify_fd) {
+        Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
+            // Read the events to clear the buffer
+            $events = inotify_read($fd); 
+            if ($events) {
+                error_log('!!!!!!!! changes !!!!!!!!!!!!');
+                // Trigger a graceful server reload when a change occurs
+                //$http->reload();  
+                $http->shutdown();  
+            }
+        });
+        watch_changes();
+    }
 });
 
 error_log("\n------- app started ----------");
@@ -160,23 +192,33 @@ $http->start();
 
 // --- helpers
 
-function safe_require_once($path) {
-    require_once($path);
+function watch_changes() {
     critical_section(function(){
         global $inotify_fd;
+        if(!$inotify_fd) return;
         static $included = [];
         $inc = get_included_files();
         $diff = array_diff($inc, $included);
         $included = $inc;
-        foreach($diff as $d) 
+        foreach($diff as $d) {
+            if(str_ends_with($d, ".jsx.done"))
+                $d = preg_replace('/[.]done$/','', $d);
             if(preg_match('#^/dist/#', $d))
                 $watch_descriptor = inotify_add_watch($inotify_fd
-                    , preg_replace('#^/dist/#', '/app/', $d)
+                    , preg_replace('#^/dist/#', '/src/', $d)
                     , IN_MODIFY);
-    });
+        }
+    });    
 }
 
-function critical_section($func) {
+
+function safe_require_once(string $path, ?array $vars = []) {
+    extract($vars);
+    require_once($path);
+    watch_changes();
+}
+
+function critical_section(callable $func) {
     $old = ini_set("swoole.enable_preemptive_scheduler", "0");
     try{
         $func();
@@ -187,27 +229,31 @@ function critical_section($func) {
 
 
 // $func: ($request, $responce) => void
-function define_route($name, $func) {
+function define_route(callable $func, string $name) {
     define('⌬'.$name, $func);
 }
 
 // $func: (...$params) => $response
-function define_api_route($name, $func) {
-    define_route($name, function($request, $response) use($func) {
+function define_api_route(callable $func, string $name, ?string $method = null) {
+    define_route(function($request, $response) use($func, $method) {
+        if($method && $method !== $request->getMethod()) {
+            $response->status(405);
+            return;
+        }
         $params = @$request->get? reparse_get($request->get)
                                 : json_decode($request->getContent());
         $ret = $func(...(array)$params);
         $response->header('Content-Type', 'application/json', false);
         $response->end(json_encode($ret));
-    });
+    }, $name);
 }
 
-function route_defined($path) {
+function route_defined(string $path) {
     $name = '⌬'.$path;
     if(defined($name)) return constant($name);
 }
 
-function reparse_get($get) {
+function reparse_get(array $get) {
     $ret = [];
     if(!$get) return $ret;
     foreach($get as $k=>$v) {
@@ -228,7 +274,7 @@ function reparse_get($get) {
     url-decode
 */
 
-function parse_get_value($s) {
+function parse_get_value(string $s) {
     $s = preg_replace('/-~/','"":', $s);
     $s = preg_replace('#([a-zA-Z0-9_%]+)~#','"$1":',$s);
 
@@ -279,3 +325,85 @@ class ResourceForbidden extends ResourceError {
 
 // 409 Conflict
 
+class API_ITEMS {
+    public array $funcs = [];
+    function __construct(public string $file) {}
+    function helpers() {
+        return [ '⛑' => fn($pos) => $this->done($pos)
+            , '⛑_GET' => fn($f) => $this->funcs[] = ['GET', $f]
+        ];
+    }
+    function done(array $pos) {
+        foreach($this->funcs as $i=>$f) {
+            $item = $pos[$i];
+            define_api_route($f[1], "$this->file~$item", $f[0] );   
+        }
+    }
+}
+
+/* jsx routes
+    METHOD+6chars
+    API.GET` function($arg) {
+    
+    }$$`
+
+generates file (required-once!)
+in the global context
+set [$⛑GET, ... ] = new ApiItemRegistry(target-file-name)
+and require_once target-file-name
+
+function dcl($f) {
+    debug_backtrace();
+}
+
+we have file, line
+XX can be column
+NPP we know for free, but js does not
+
+which contains:
+<?php 
+
+    ⛑GET(XX)(function($arg) {
+        return 'bla-bla';
+    });
+
+
+
+    $⛑GET(NN,function($arg) {
+        return 'bla-bla';
+    });
+
+
+    function ⛑1    (){return ⛓A(<<<SQL
+                docid, title
+                from udata.docs
+                WHERE doctype = 's.n.exp_vote'
+            SQL
+            );}                                     
+*/
+
+/*
+    API.GET` function($arg) {
+    
+    }$$`
+
+    $SYSAPI.GET` function($arg) {
+    
+    }$$`
+    $GET(XXXXXXX,func....
+
+
+
+    $API.GET` function($arg) {
+    
+    }$$`
+
+    $GET(XXXX,)
+
+
+    ---
+    encode position
+    1) XXXXXX -> до миллиона
+    2) 0xXXXX -> 64тыс
+    3) ->IDXX -> 14млн
+*/
