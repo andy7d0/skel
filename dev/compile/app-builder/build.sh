@@ -27,7 +27,7 @@ rsync \
 	--include='*.jsx' \
 	--exclude='*' \
 	-v \
-	/src/ $DIST/
+	/src/ /dist/
 
 	#-n \
 
@@ -37,9 +37,13 @@ echo
 echo '<<<<<<<< rebuild >>>>>>>>>>>>>>>>'
 echo
 
-make -C $DIST -f $PWD/jsx-to-php.make all
+make -C /dist -f /build/jsx-to-php.make all
 
 
 echo
 echo '<<<<<<<< done >>>>>>>>>>>>>>>>'
 echo
+
+echo '<<<<<<<<<< restart servers >>>>>>>>>>'
+curl -s http://ext_app:9580/app/ext/reload
+

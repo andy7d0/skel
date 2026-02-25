@@ -1,20 +1,25 @@
 <?php
 
-const SUBSYSTEM = 'ext';
-const __ROOTDIR__ = __DIR__;
+define('__ROOTDIR__', basename(__DIR__));
+define('SUBSYSTEM', $argv[1]);
+
+set_include_path(
+    implode(':', [
+    __ROOTDIR__.'/az4'
+    , __ROOTDIR__.'/common'
+    , __ROOTDIR__])
+);
+//TODO:
+// define('APP_MODE',
+//     file_exists('/src') ? 'dev'
+//     :  (false ?'test' //TODO
+//     : 'prod')
+// );
 
 mb_internal_encoding("UTF-8");
 
 
 $http = new Swoole\Http\Server("0.0.0.0", 9580);
-
-define('APP_MODE',
-    file_exists('/src') ? 'dev'
-    :  (false ?'test' //TODO
-    : 'prod')
-);
-
-
 
 $http->set([
     'max_coroutine' => 3000,
@@ -71,7 +76,15 @@ $http->set([
 
 ]);
 
-$http->on('request', function ($request, $response) {
+$http->on('request', function ($request, $response) use($http) {
+    $path = $request->server['request_uri'];
+
+    // TODO: check APP_MODE
+    if($path === '/app/'.SUBSYSTEM.'/reload') {
+        error_log('!!!!!!!! changes !!!!!!!!!!!!');
+        $http->shutdown();
+        return;
+    }
 
     //TODO: define('__PEER__', @$_SERVER['HTTP_X_PEER']);
     //TODO: @include __ROOT__.'/vendor/autoload.php';
@@ -80,7 +93,6 @@ $http->on('request', function ($request, $response) {
 
     //error_log(@$request->server['query_string']??'---');
     //error_log(var_export($request->get, true));
-    $path = $request->server['request_uri'];
     if(!preg_match('#^/app/'.SUBSYSTEM.'/#', $path)) { // FIXME: use correct subsystem here
         $response->status(404, 'subsystem');
         return;        
@@ -118,7 +130,7 @@ $http->on('request', function ($request, $response) {
     while($path !== '/') {
         //error_log($path);
         foreach($suffixes as $suffix) {
-            $fpath = __DIR__."$path$suffix";
+            $fpath = __ROOTDIR__.'/'.SUBSYSTEM."$path$suffix";
             $route = route_defined("$fpath$api_index");
             if($route) goto found;
             if(file_exists($fpath)) {
@@ -156,7 +168,7 @@ $http->on('request', function ($request, $response) {
                     , 'trace' => array_slice($e->getTrace(),0,-1) //TODO: not in production or encoded value
                 ];
             $response->header('Content-Type', 'application/json');
-            $response->end(json_encode($msg));
+            $response->end(json_encode($msg, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));
         } else {
             $response->header('Content-Type', 'text/plain');
             $response->end($e);
@@ -165,26 +177,25 @@ $http->on('request', function ($request, $response) {
     }
 });
 
-$inotify_fd = APP_MODE === 'dev' ? inotify_init() : null;
+// $inotify_fd = APP_MODE === 'dev' ? inotify_init() : null;
 
+// $http->on('start', function() use($http) {
+//     global $inotify_fd;
 
-$http->on('start', function() use($http) {
-    global $inotify_fd;
-
-    if($inotify_fd) {
-        Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
-            // Read the events to clear the buffer
-            $events = inotify_read($fd); 
-            if ($events) {
-                error_log('!!!!!!!! changes !!!!!!!!!!!!');
-                // Trigger a graceful server reload when a change occurs
-                //$http->reload();  
-                $http->shutdown();  
-            }
-        });
-        watch_changes();
-    }
-});
+//     if($inotify_fd) {
+//         Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
+//             // Read the events to clear the buffer
+//             $events = inotify_read($fd); 
+//             if ($events) {
+//                 error_log('!!!!!!!! changes !!!!!!!!!!!!');
+//                 // Trigger a graceful server reload when a change occurs
+//                 //$http->reload();  
+//                 $http->shutdown();  
+//             }
+//         });
+//         watch_changes();
+//     }
+// });
 
 error_log("\n------- app started ----------");
 
@@ -192,30 +203,30 @@ $http->start();
 
 // --- helpers
 
-function watch_changes() {
-    critical_section(function(){
-        global $inotify_fd;
-        if(!$inotify_fd) return;
-        static $included = [];
-        $inc = get_included_files();
-        $diff = array_diff($inc, $included);
-        $included = $inc;
-        foreach($diff as $d) {
-            if(str_ends_with($d, ".jsx.done"))
-                $d = preg_replace('/[.]done$/','', $d);
-            if(preg_match('#^/dist/#', $d))
-                $watch_descriptor = inotify_add_watch($inotify_fd
-                    , preg_replace('#^/dist/#', '/src/', $d)
-                    , IN_MODIFY);
-        }
-    });    
-}
+// function watch_changes() {
+//     critical_section(function(){
+//         global $inotify_fd;
+//         if(!$inotify_fd) return;
+//         static $included = [];
+//         $inc = get_included_files();
+//         $diff = array_diff($inc, $included);
+//         $included = $inc;
+//         foreach($diff as $d) {
+//             if(str_ends_with($d, ".jsx.done"))
+//                 $d = preg_replace('/[.]done$/','', $d);
+//             if(preg_match('#^/dist/#', $d))
+//                 $watch_descriptor = inotify_add_watch($inotify_fd
+//                     , preg_replace('#^/dist/#', '/src/', $d)
+//                     , IN_MODIFY);
+//         }
+//     });    
+// }
 
 
 function safe_require_once(string $path, ?array $vars = []) {
     extract($vars);
     require_once($path);
-    watch_changes();
+    // watch_changes();
 }
 
 function critical_section(callable $func) {
@@ -244,7 +255,7 @@ function define_api_route(callable $func, string $name, ?string $method = null) 
                                 : json_decode($request->getContent());
         $ret = $func(...(array)$params);
         $response->header('Content-Type', 'application/json', false);
-        $response->end(json_encode($ret));
+        $response->end(json_encode($ret,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));
     }, $name);
 }
 

@@ -45,19 +45,15 @@ RUN apk add --no-cache --upgrade postgresql-dev bzip2-dev zlib-dev libpng-dev ge
 
 RUN docker-php-ext-install pdo_pgsql bz2 gd gettext gmp zip 
 
-RUN apk add --no-cache --update autoconf \
-	&& pecl channel-update pecl.php.net \
-    && yes no | pecl install inotify \
-    && docker-php-ext-enable inotify
-
-RUN apk add --no-cache --update make rsync
+# RUN apk add --no-cache --update autoconf \
+#	&& pecl channel-update pecl.php.net \
+#    && yes no | pecl install inotify \
+#    && docker-php-ext-enable inotify
 
 # NO NEED apcu ???
 
 ARG S_UID
 ARG S_GID
-
-COPY --chown=${S_UID}:${S_GID} . /build 
 
 # cache ? 
 # RUN mkdir -p /var/cache/sapp && chown ${S_UID}:${S_GID} /var/cache/sapp      

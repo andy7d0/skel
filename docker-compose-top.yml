@@ -2,6 +2,8 @@
 # web-app-docker-compose - в prod - двум  идентичным серверам ext/int app
 # 
 include:
+   - path: ./dev/compile/app-builder/app-builder-compose.yml
+     project_directory: .
    - path: ./src/app/ext/servers/app/app-php-compose.yml
      project_directory: .
    - path: ./src/app/common/servers/web-compose.yml

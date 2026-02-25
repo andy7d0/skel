@@ -1,0 +1,18 @@
+services:
+  app_builder: 
+    build: 
+      context: ./dev/compile/app-builder
+      network: host
+      args:
+         S_UID: ${S_UID}
+         S_GID: ${S_GID}
+    user: ${S_UID}:${S_GID}
+    restart: ${RESTART_MODE}
+    working_dir: /build
+    command: /build/build-monitor.sh
+    volumes:
+      - ./src/app:/src
+      - ./dev/compile/app-builder:/build
+      - ./dev/compile/build-api-entries-php/build-jsx:/build/build-jsx
+      - ./dist/app:/dist
+    init: true

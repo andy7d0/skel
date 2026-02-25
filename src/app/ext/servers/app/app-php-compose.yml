@@ -1,7 +1,7 @@
 services:
   ext_app: 
     build: 
-      context: ./php
+      context: ./src/app/ext/servers/app/php
       network: host
       args:
          S_UID: ${S_UID}
@@ -9,16 +9,13 @@ services:
     user: ${S_UID}:${S_GID}
     restart: ${RESTART_MODE}
     network_mode: ${NET_MODE}
-#    ports:
-#      - ${HOST_LOOPBACK_IP}:3080:80
     environment:
       - TZ=Europe/Moscow
-      - DIST=/dist
-    working_dir: /build
-    command: ./app-entrypoint.sh
+    working_dir: /dist/app
+    command: php ./az4/app-main.php ext
     volumes:
-      - ./src/app/ext:/src
-      - ./dev/compile/build-api-entries-php/build-jsx:/build/build-jsx
-      - ./dist/app/ext:/dist
+      - ./dist/app:/dist/app
       - /etc/timezone:/etc/timezone:ro
     init: true
+    depends_on:
+      - app_builder
