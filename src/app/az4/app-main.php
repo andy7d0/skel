@@ -9,6 +9,9 @@ set_include_path(
     , __ROOTDIR__.'/common'
     , __ROOTDIR__])
 );
+    
+//TODO: @include __ROOT__.'/vendor/autoload.php';
+
 //TODO:
 // define('APP_MODE',
 //     file_exists('/src') ? 'dev'
@@ -87,7 +90,6 @@ $http->on('request', function ($request, $response) use($http) {
     }
 
     //TODO: define('__PEER__', @$_SERVER['HTTP_X_PEER']);
-    //TODO: @include __ROOT__.'/vendor/autoload.php';
 
 
 
