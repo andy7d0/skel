@@ -15,4 +15,5 @@ services:
       - ./dev/compile/app-builder:/build
       - ./dev/compile/build-api-entries-php/build-jsx:/build/build-jsx
       - ./dist/app:/dist
+      - ./dist/databases:/dist-db
     init: true

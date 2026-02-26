@@ -2,10 +2,10 @@ services:
   main_db: 
     image: postgres:18-alpine
     volumes:
-      - ./databases/main_db/conf:/var/lib/postgresql/data/conf
-      - ./databases/main_db/storage:/var/lib/postgresql/data/storage
+      - ./databases/main_db/conf:/var/lib/postgresql/conf:ro
+      - ./databases/main_db/storage:/var/lib/postgresql/data
       - ./workarea/sockets/main_db:/var/run/postgresql
-      - ./dist/databases/main_db:/lib/postgresql/data/def
+      - ./dist/databases/main_db:/lib/postgresql/def:ro
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     user: ${S_UID}:${S_GID}
@@ -18,7 +18,14 @@ services:
     environment:
       POSTGRES_PASSWORD: 1
       POSTGRES_DB: main_db
-      PGDATA: /var/lib/postgresql/data/storage
+      PGDATA: /var/lib/postgresql/data
+    command: sh -c "
+              printf 'postgres:x:%s:%s:PostgreSQL:%s:/bin/false\n' $(id -u) $(id -g) /var/lib/postgresql/data > /var/lib/postgresql/data/passwd;
+              printf 'postgres:x:%s:\n' $(id -g) > /var/lib/postgresql/data/groups;
+              LD_PRELOAD=/usr/lib/libnss_wrapper.so NSS_WRAPPER_PASSWD=/var/lib/postgresql/data/passwd NSS_WRAPPER_GROUP=/var/lib/postgresql/data/groups postgres 
+               -c 'config_file=/var/lib/postgresql/conf/postgresql.conf'
+               -c 'hba_file=/var/lib/postgresql/conf/pg_hba.conf' "
+
 
   main_bouncer: # this is a plain pgbounces instance
     image: edoburu/pgbouncer:v1.25.1-p0 

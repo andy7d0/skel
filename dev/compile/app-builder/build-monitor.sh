@@ -39,7 +39,7 @@ process_modify() {
 processor
 
 exec 3< <( inotifywait -rm \
-	--include "[.](txt|php|yml|toml|jsx)$" \
+	--include "[.](txt|php|yml|toml|jsx|ddl)$" \
 	-e modify \
 	-e create \
 	-e delete \

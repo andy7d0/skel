@@ -4,7 +4,7 @@ pwd
 
 . ./dev/scripts/common.inc
 
-$OP = $1
+OP=$1
 shift
 
 # database = server
@@ -25,7 +25,7 @@ case "$OP" in
 init)
 	./dev/scripts/compose.sh down
 	sleep 5
-	./dev/scripts/compose.sh up $DB_NAME
+	./dev/scripts/compose.sh up $DB_NAME -d --wait
 	until pg_isready
 	do
 		echo .

@@ -1,1 +1,2 @@
-"bouncer_adm" "1"
+"anonymous" ""
+"bouncer_admin" "1"
