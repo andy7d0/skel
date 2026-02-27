@@ -5,7 +5,7 @@ services:
       - ./databases/main_db/conf:/var/lib/postgresql/conf:ro
       - ./databases/main_db/storage:/var/lib/postgresql/data
       - ./workarea/sockets/main_db:/var/run/postgresql
-      - ./dist/databases/main_db:/lib/postgresql/def:ro
+      - ./dist/databases/main_db:/var/lib/postgresql/def:ro
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     user: ${S_UID}:${S_GID}

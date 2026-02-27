@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 set -e
 
 echo 
@@ -22,6 +24,7 @@ rsync \
 	--include='*/' \
 	--include='*.txt' \
 	--include='*.php' \
+	--include='*.json' \
 	--include='*.yml' \
 	--include='*.toml' \
 	--include='*.jsx' \
@@ -37,49 +40,24 @@ echo
 echo '<<<<<<<< rebuild >>>>>>>>>>>>>>>>'
 echo
 
-make -C /dist -f /build/jsx-to-php.make all
+make -C /dist -f "$SCRIPT_DIR/jsx-to-php.make" all
 
 echo
 echo '<<<<<<<< build DDLs >>>>>>>>>>>>>>>>'
 echo
 
-cat_file_with_header() {
-	echo "-- file: $1"
-	cat $1
-}
-export -f cat_file_with_header
 
-for database in main_db
-do
-	{
-	cat <<- 'MG'
-		-- prolog
-		set client_min_messages = 'notice';
-		DO $ALTER_DB_DO_COMMAND$
-		BEGIN
-	MG
+PG_DBS=main_db
 
-	find /src -name "*.${database}.ddl" -print0 \
-	| sort -z \
-	| xargs -0 -n 1 -I "#" bash -c 'cat_file_with_header "#"'
+. "$SCRIPT_DIR/build-ddls.sh"
 
-	echo 
-	echo 
-	echo -- epilog
-	echo 
 
-	cat <<- 'MG'
-		END;
-		$ALTER_DB_DO_COMMAND$;
-	MG
+echo
+echo '<<<<<<<< build classifiers >>>>>>>>>>>>>>>>'
+echo
 
-	} \
-	> /dist-db/${database}/ddls.sql
+. "$SCRIPT_DIR/build-cls.sh"
 
-	HASH=$(cat /dist-db/${database}/ddls.sql | sha256sum | cut -d ' ' -f 1)
-	sed -i "s/#MIGRATION_VERSION_PLACEHOLDER#/$HASH/" /dist-db/${database}/ddls.sql
-
-done
 
 echo
 echo '<<<<<<<< done >>>>>>>>>>>>>>>>'

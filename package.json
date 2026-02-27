@@ -7,6 +7,7 @@
     "lint": "oxlint",
     "compose": "./dev/scripts/compose.sh",
     "compose-run": "./dev/scripts/compose.sh run --remove-orphans",
+    "db": "./dev/scripts/db.sh",
     "up": "./dev/scripts/compose.sh up",
     "init-project": "./dev/scripts/init-project.sh",
     "build": "./dev/scripts/build.sh",

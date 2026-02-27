@@ -1,5 +1,3 @@
-raise notice 'MIGRATION go';
-
 if to_regproc('migration.db_version') is not null then
 	if (select migration.db_version()) = '#MIGRATION_VERSION_PLACEHOLDER#' then
 		return;
@@ -40,21 +38,28 @@ GRANT USAGE ON SCHEMA store TO user_sysop;
 CREATE SCHEMA IF NOT EXISTS utils;
 GRANT USAGE ON SCHEMA utils TO PUBLIC;
 
+CREATE SCHEMA IF NOT EXISTS user_user;
+GRANT USAGE ON SCHEMA user_user TO user_user;
+CREATE SCHEMA IF NOT EXISTS user_sysop;
+GRANT USAGE ON SCHEMA user_sysop TO user_sysop;
+CREATE SCHEMA IF NOT EXISTS user_admin;
+GRANT USAGE ON SCHEMA user_admin TO user_admin;
+
 
 SET azstate.mode = 'ALTER_DB';
 
-ALTER DATABASE ext_db SET client_encoding TO 'UTF8';
-ALTER DATABASE ext_db SET "DateStyle" TO 'iso, ymd';
-ALTER DATABASE ext_db SET "TimeZone" TO 'utc';
-ALTER DATABASE ext_db SET client_min_messages TO 'warning';
-ALTER DATABASE ext_db SET bytea_output TO 'hex';
-ALTER DATABASE ext_db SET search_path TO 'operators';
+ALTER DATABASE main_db SET client_encoding TO 'UTF8';
+ALTER DATABASE main_db SET "DateStyle" TO 'iso, ymd';
+ALTER DATABASE main_db SET "TimeZone" TO 'utc';
+ALTER DATABASE main_db SET client_min_messages TO 'warning';
+ALTER DATABASE main_db SET bytea_output TO 'hex';
+ALTER DATABASE main_db SET search_path TO 'operators';
 
-CREATE OR REPLACE FUNCTION migration.db_version() RETURNS text 
+CREATE FUNCTION migration.db_version() RETURNS text 
 	LANGUAGE sql IMMUTABLE LEAKPROOF COST 1 
 	AS $$SELECT '#MIGRATION_VERSION_PLACEHOLDER#'$$;
 
-CREATE OR REPLACE FUNCTION migration.drop_triggers(p_table text) RETURNS void
+CREATE FUNCTION migration.drop_triggers(p_table text) RETURNS void
     LANGUAGE plpgsql 
     AS $$
 declare
@@ -72,11 +77,32 @@ begin
     END LOOP;
 end$$;
 
+CREATE FUNCTION migration.constraint_exists(name text, scm text) RETURNS boolean
+    LANGUAGE sql
+    AS $$SELECT exists(
+        SELECT true from pg_catalog.pg_constraint 
+        WHERE conname = name AND connamespace = scm::regnamespace)
+    $$;
+
+CREATE FUNCTION migration.drop_versions(cmd text, name text) RETURNS void
+    LANGUAGE plpgsql 
+    AS $$
+declare
+    cnt int = SUBSTRING(name FROM '(\d+)$')::int;
+    n int;
+begin
+    if cnt is null then return; end if;
+    FOR n IN 1 .. cnt-1 LOOP
+        EXECUTE replace(cmd, '###', RTRIM(name,'0123456789') || n::text);
+    END LOOP;
+end$$;
+
+
 CREATE TABLE migration.guards (guard_key text PRIMARY KEY, guard_value text);
 COMMENT ON TABLE migration.guards IS 'guard marks for migrations';
 
 
-CREATE OR REPLACE FUNCTION migration.guard_migration(p_key text, p_value text DEFAULT null) RETURNS boolean
+CREATE FUNCTION migration.guard_migration(p_key text, p_value text DEFAULT null) RETURNS boolean
     LANGUAGE plpgsql 
     AS $$
 begin
@@ -127,14 +153,14 @@ CREATE TYPE utils.path_pair AS (
 );
 end if;
 
-if to_regtype('store.path_type') is null then
-    CREATE DOMAIN main.path_type AS character varying(1000) collate "C";
+if to_regtype('utils.path_type') is null then
+    CREATE DOMAIN utils.path_type AS character varying(1000) collate "C";
 end if;
 
 
 -- simple functions
 
-CREATE OR REPLACE FUNCTION utils.base52_10(i bigint) RETURNS text
+CREATE FUNCTION utils.base52_10(i bigint) RETURNS text
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF
     AS $$declare
   s text;
@@ -152,7 +178,7 @@ begin
 end
 $$;
 
-CREATE OR REPLACE FUNCTION utils.base62_3(i integer) RETURNS text
+CREATE FUNCTION utils.base62_3(i integer) RETURNS text
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF
     AS $$
 declare
@@ -164,7 +190,7 @@ begin
 end
 $$;
 
-CREATE OR REPLACE FUNCTION utils.unbase62_3(i text) RETURNS integer
+CREATE FUNCTION utils.unbase62_3(i text) RETURNS integer
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF
     AS $$
 declare
@@ -178,7 +204,7 @@ begin
 end
 $$;
 
-CREATE OR REPLACE FUNCTION utils.title_name(f text, i text, o text) RETURNS text
+CREATE FUNCTION utils.title_name(f text, i text, o text) RETURNS text
     LANGUAGE sql IMMUTABLE LEAKPROOF PARALLEL SAFE
     AS $$select concat(f||' '
                  , substring(i,1,1) || '.'
@@ -186,7 +212,7 @@ CREATE OR REPLACE FUNCTION utils.title_name(f text, i text, o text) RETURNS text
 
 
 
-CREATE OR REPLACE FUNCTION utils.cmp(op utils.cmp_op, a bigint, b bigint) RETURNS boolean
+CREATE FUNCTION utils.cmp(op utils.cmp_op, a bigint, b bigint) RETURNS boolean
     LANGUAGE sql IMMUTABLE COST 1 PARALLEL SAFE
     AS $$select case op
 when '=' then a = b
@@ -197,20 +223,20 @@ when '<=' then a <= b
 when '>=' then a >= b
 end$$;
 
-CREATE OR REPLACE FUNCTION utils.extract_number(str text) RETURNS numeric
+CREATE FUNCTION utils.extract_number(str text) RETURNS numeric
     LANGUAGE sql IMMUTABLE STRICT LEAKPROOF PARALLEL SAFE
     AS $$select substring(str from '[0-9]+(?:[.][0-9]*)?')::numeric$$;
 
 
-CREATE OR REPLACE FUNCTION utils.immutable_concat_ws(text, VARIADIC text[]) RETURNS text
+CREATE FUNCTION utils.immutable_concat_ws(text, VARIADIC text[]) RETURNS text
     LANGUAGE internal IMMUTABLE LEAKPROOF PARALLEL SAFE
     AS $$text_concat_ws$$;
 
-CREATE OR REPLACE FUNCTION utils.session_id() RETURNS text
+CREATE FUNCTION utils.session_id() RETURNS text
     LANGUAGE sql STRICT LEAKPROOF 
     AS $$ select concat(pg_catalog.pg_backend_pid(),'.',extract(epoch from transaction_timestamp()))$$;
 
-CREATE OR REPLACE FUNCTION utils.scram_enc(scram text, data text) RETURNS text
+CREATE FUNCTION utils.scram_enc(scram text, data text) RETURNS text
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF PARALLEL SAFE
     AS $_$
 declare
@@ -236,27 +262,27 @@ begin
 end
 $_$;
 
-CREATE OR REPLACE FUNCTION utils.pgc_text_compare(b bytea, t text, n text) RETURNS boolean
+CREATE FUNCTION utils.pgc_text_compare(b bytea, t text, n text) RETURNS boolean
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF COST 10 PARALLEL SAFE
     AS $$ begin return t = pgc.pgp_sym_decrypt(b,n); end$$;
 
-CREATE OR REPLACE FUNCTION utils.pgc_text_to_bytea(t text, n text) RETURNS bytea
+CREATE FUNCTION utils.pgc_text_to_bytea(t text, n text) RETURNS bytea
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF COST 10 PARALLEL SAFE
     AS $$ begin return pgc.pgp_sym_encrypt( t, n); end $$;
 
 -- LOGIN HELPERS
 
-CREATE OR REPLACE FUNCTION private.server_key() RETURNS text
+CREATE FUNCTION private.server_key() RETURNS text
     LANGUAGE sql IMMUTABLE LEAKPROOF COST 1 PARALLEL SAFE
     AS $$select 'sdsdaalfjkjtro2357109423487482517175438217234782351897171'$$;
 -- NOTE: replace this key in production!!!!!
 
-CREATE OR REPLACE FUNCTION private.login_person_check_key(p_login text, p_id text) RETURNS text
+CREATE FUNCTION private.check_person_key(p_login text, p_id text) RETURNS text
     LANGUAGE sql IMMUTABLE STRICT LEAKPROOF COST 1 PARALLEL SAFE
     AS $$
     select encode(pgc.hmac(concat(p_login,':',p_id), private.server_key() ,'sha256'),'hex')$$;
 
-CREATE OR REPLACE FUNCTION private.session_mac(p text) RETURNS text
+CREATE FUNCTION private.session_mac(p text) RETURNS text
     LANGUAGE sql IMMUTABLE STRICT LEAKPROOF COST 1 PARALLEL SAFE
     AS $$ select encode(pgc.hmac(concat(utils.session_id(),':',p), private.server_key() ,'sha256'),'hex') $$;
 
@@ -274,13 +300,6 @@ ALTER TABLE ONLY private.logins ALTER COLUMN login SET STORAGE PLAIN;
 ALTER TABLE ONLY private.logins ALTER COLUMN phash2 SET STORAGE PLAIN;
 ALTER TABLE ONLY private.logins ALTER COLUMN sysrole SET STORAGE PLAIN;
 
--- called from bouncer
--- returns [login,password-hash] from our users
--- or [uname, pass(hash)] for anonymous
-CREATE OR REPLACE FUNCTION login.shadow_info(x text) RETURNS record
-    LANGUAGE sql STABLE STRICT SECURITY DEFINER LEAKPROOF PARALLEL SAFE
-    AS $$ SELECT 'user_'||sysrole, phash2 FROM login.logins WHERE login = x $$;
-
 CREATE TABLE private.registrations (
     hash character varying(500) NOT NULL collate "C",
     stamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -289,6 +308,72 @@ CREATE TABLE private.registrations (
 );
 ALTER TABLE ONLY private.registrations ALTER COLUMN hash SET STORAGE PLAIN;
 ALTER TABLE ONLY private.registrations ALTER COLUMN login SET STORAGE PLAIN;
+
+-- called from bouncer
+-- returns [login,password-hash] from our users
+-- or [uname, pass(hash)] for anonymous
+CREATE FUNCTION login.shadow_info(x text) RETURNS record
+    LANGUAGE sql STABLE STRICT SECURITY DEFINER LEAKPROOF PARALLEL SAFE
+    AS $$ SELECT 'user_'||sysrole, phash2 FROM login.logins WHERE login = x $$;
+
+
+
+CREATE FUNCTION public.reset_connection(p_login text DEFAULT NULL::text, p_id text DEFAULT NULL::text
+    , p_h text DEFAULT NULL::text, p_version text DEFAULT NULL::text) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    AS $$
+begin
+    if p_version is not null then
+        -- raise notice 'ver:%', p_version;
+        if p_version is distinct from migration.db_version() then
+            return false;
+        end if;
+    end if;
+    if p_login is null and p_id is null then
+        perform 
+        set_config('azstate.login', '', true),
+        set_config('azstate.personid', '', true),
+        set_config('azstate.lpmac', '', true)
+        ;   
+    else if
+        p_h is not distinct from 
+        private.check_person_key(p_login,p_id)
+        or
+        session_user = 'postgres'
+    then
+        perform 
+        set_config('azstate.login', p_login, true),
+        set_config('azstate.personid', p_id, true),
+        set_config('azstate.lpmac', 
+                   private.session_mac(
+                       concat(p_login,':',p_id)
+                    )
+                   , true)
+        ;   
+    else
+        raise exception check_violation;
+    end if;
+    return true;
+end 
+$$;
+
+CREATE FUNCTION user_user.current_personid() RETURNS integer
+    LANGUAGE plpgsql STABLE SECURITY DEFINER LEAKPROOF COST 1
+    AS $$declare
+    p_login text = current_setting('azstate.login', true);
+    p_id text = current_setting('azstate.personid', true);
+begin 
+    if current_setting('azstate.lpmac', true)
+        is distinct from 
+        private.session_mac(
+           concat(p_login,':',p_id)
+        )
+    then 
+        return null;
+    end if;
+    return nullif(p_id,'');
+end$$;
+
 
 /*
     anybody can get login + it's scram

@@ -49,4 +49,15 @@ dump)
 	echo dumped	
 ;;
 
+migrate)
+	echo migrate database $DB_NAME
+
+	psql -f /var/lib/postgresql/def/ddls.sql
+	psql -f /var/lib/postgresql/def/classifiers.sql
+;;
+
+psql)
+	./dev/scripts/compose.sh exec $DB_NAME psql -d $DB_NAME -U postgres "$@"
+;;
+
 esac
