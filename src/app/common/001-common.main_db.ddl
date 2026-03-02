@@ -3,27 +3,6 @@
 CREATE SCHEMA IF NOT EXISTS cls;
 GRANT USAGE ON SCHEMA cls TO user_user;
 
-DROP TABLE cls.tuples;
-
-
--- CLS HELPERS
-
-DROP FUNCTION cls.decode;
-DROP FUNCTION cls.decode_json;
-DROP FUNCTION cls.encode;
-/*
-CREATE FUNCTION cls.decode(p_key text, p_dict text) RETURNS text
-    LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
-    AS $$select r from cls.tuples where dict = p_dict and k = p_key$$;
-
-CREATE FUNCTION cls.decode_json(p_key text, p_dict text) RETURNS jsonb
-    LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
-    AS $$select v from cls.tuples where dict = p_dict and k = p_key$$;
-
-CREATE FUNCTION cls.encode(p_r text, p_dict text) RETURNS text
-    LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
-    AS $$select k from cls.tuples where dict = p_dict and r = p_r$$;
-*/
 -- CLS UPDATER
 
 CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
@@ -50,6 +29,20 @@ CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
 
 			EXECUTE format('GRANT SELECT ON TABLE cls.%I TO user_user', dict_name);
 
+			EXECUTE format('DROP FUNCTION IF EXISTS cls.%I', dict_name||'.decode');
+			EXECUTE format('DROP FUNCTION IF EXISTS cls.%I', dict_name||'.encode');
+			EXECUTE format('DROP FUNCTION IF EXISTS cls.%I', dict_name||'.data');
+
+			EXECUTE format($_$ CREATE OR REPLACE FUNCTION cls.%2$I(text) RETURNS text LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
+					AS $f$select r from cls.%1$I where k = $1 $f$ $_$
+				, dict_name, dict_name||'.decode');
+			EXECUTE format($_$ CREATE OR REPLACE FUNCTION cls.%2$I(text) RETURNS jsonb LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
+					AS $f$select v from cls.%1$I where k = $1 $f$ $_$
+				, dict_name, dict_name||'.data');
+			EXECUTE format($_$ CREATE OR REPLACE FUNCTION cls.%2$I(text) RETURNS text LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
+					AS $f$select k from cls.%1$I where r = $1 $f$ $_$
+				, dict_name, dict_name||'.encode');
+
 			EXECUTE format('TRUNCATE cls.%I', dict_name);
 
 			EXECUTE format($_$
@@ -61,12 +54,12 @@ CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
 								when 'object' then null
 								when 'array' then null
 								when 'null' then null
-								else v::text
+								else v #>> '{}'
 								end
 							FROM jsonb_each(val) _(k,v) LIMIT 1)
 					when 'array' then NULL
 					when 'null' then NULL
-					else val::text
+					else val #>> '{}'
 					end)
 				FROM jsonb_each($1) _(k,val);
 				$_$, dict_name)
