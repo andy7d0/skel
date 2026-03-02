@@ -5,6 +5,27 @@ GRANT USAGE ON SCHEMA cls TO user_user;
 
 -- CLS UPDATER
 
+-- helper 
+CREATE FUNCTION cls.already_processed_version(scm text, name text, data jsonb) RETURNS boolean 
+LANGUAGE plpgsql AS $$
+	DECLARE 
+		vhash text = encode(sha256(convert_to(data::text,'UTF8')),'hex');
+		ver text;
+	BEGIN
+		if to_regproc(scm||'.'||quote_ident(name||'.version')) is not null then
+			EXECUTE format('SELECT %I.%I()',scm, name||'.version') INTO ver;
+			if ver = vhash then
+				return true;
+			end if;
+		end if;
+
+		EXECUTE format('CREATE OR REPLACE FUNCTION %I.%I() RETURNS text LANGUAGE sql AS $f$ SELECT %L $f$'
+				, scm, name||'.version', vhash);
+		return false;
+	END
+$$;
+
+
 CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
 	LANGUAGE plpgsql STRICT LEAKPROOF
 	AS $$
@@ -13,6 +34,7 @@ CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
 	BEGIN
 		FOR dict_name,dict_data IN SELECT k,v FROM jsonb_each(c) _(k,v)
 		LOOP
+			if cls.already_processed_version('cls',dict_name,dict_data) then continue; end if;
 
 			EXECUTE format('DROP TABLE IF EXISTS cls.%I', dict_name);
 			EXECUTE format($_$
@@ -137,7 +159,6 @@ CREATE OR REPLACE FUNCTION upserts.jsonb_set(old_val anyelement, new_val jsonb) 
             jsonb_populate_record(old_val, new_val)
         end);
 	$$;
-
 
 
 -- PREDEFINED CONTENT

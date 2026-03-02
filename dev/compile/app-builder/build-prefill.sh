@@ -34,19 +34,19 @@ echo ' "": null } $JSON_CONST$::jsonb - $$$$;'
 echo 'BEGIN'
 
 cat <<- 'MG'
-	DECLARE n text; d jsonb; s text;
+	DECLARE n text; d jsonb; scm text; tbl text;
 	BEGIN FOR n,d IN SELECT k,v FROM jsonb_each(prefill) _(k,v) LOOP
-			s = format('SELECT %1I.%2I($1)'
-					, (SELECT relnamespace::regnamespace::text as scheme_name
+			scm = (SELECT relnamespace::regnamespace::text as scheme_name
 							FROM pg_catalog.pg_class
-							WHERE oid = n::regclass)
-					, (SELECT relname AS table_name
+							WHERE oid = n::regclass);
+			tbl = (SELECT relname AS table_name
 						FROM   pg_catalog.pg_class
-						WHERE  oid = n::regclass)||'.prefill'
-				);
+						WHERE  oid = n::regclass);
 				
-			RAISE NOTICE 'PREFILL CMD: %', s;
-			EXECUTE s USING d;
+			IF NOT cls.already_processed_version(scm,tbl,d) THEN
+				EXECUTE format('SELECT %1I.%2I($1)',scm,tbl||'.prefill') USING d;
+			END IF;
+
 		END LOOP;
 	END;
 MG
