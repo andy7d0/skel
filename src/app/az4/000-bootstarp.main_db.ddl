@@ -1,19 +1,11 @@
-if to_regproc('migration.db_version') is not null then
-	if (select migration.db_version()) = '#MIGRATION_VERSION_PLACEHOLDER#' then
-		return;
-	end if;
-end if;
+SET azstate.mode = 'ALTER_DB';
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-PERFORM pg_catalog.set_config('search_path', '', false);
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
+ALTER DATABASE main_db SET client_encoding TO 'UTF8';
+ALTER DATABASE main_db SET "DateStyle" TO 'iso, ymd';
+ALTER DATABASE main_db SET "TimeZone" TO 'utc';
+ALTER DATABASE main_db SET client_min_messages TO 'warning';
+ALTER DATABASE main_db SET bytea_output TO 'hex';
+ALTER DATABASE main_db SET search_path TO 'operators';
 
 CREATE SCHEMA IF NOT EXISTS login;
 GRANT USAGE ON SCHEMA login TO sysuser_auth;
@@ -45,19 +37,6 @@ GRANT USAGE ON SCHEMA user_sysop TO user_sysop;
 CREATE SCHEMA IF NOT EXISTS user_admin;
 GRANT USAGE ON SCHEMA user_admin TO user_admin;
 
-
-SET azstate.mode = 'ALTER_DB';
-
-ALTER DATABASE main_db SET client_encoding TO 'UTF8';
-ALTER DATABASE main_db SET "DateStyle" TO 'iso, ymd';
-ALTER DATABASE main_db SET "TimeZone" TO 'utc';
-ALTER DATABASE main_db SET client_min_messages TO 'warning';
-ALTER DATABASE main_db SET bytea_output TO 'hex';
-ALTER DATABASE main_db SET search_path TO 'operators';
-
-CREATE FUNCTION migration.db_version() RETURNS text 
-	LANGUAGE sql IMMUTABLE LEAKPROOF COST 1 
-	AS $$SELECT '#MIGRATION_VERSION_PLACEHOLDER#'$$;
 
 CREATE FUNCTION migration.drop_triggers(p_table text) RETURNS void
     LANGUAGE plpgsql 

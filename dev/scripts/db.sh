@@ -52,8 +52,7 @@ dump)
 migrate)
 	echo migrate database $DB_NAME
 
-	psql -f /var/lib/postgresql/def/ddls.sql
-	psql -f /var/lib/postgresql/def/classifiers.sql
+	psql -f /var/lib/postgresql/def/$DB_NAME.define.sql
 ;;
 
 psql)
