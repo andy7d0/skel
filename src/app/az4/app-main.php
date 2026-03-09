@@ -1,14 +1,7 @@
 <?php
 
-define('__ROOTDIR__', basename(__DIR__));
-define('SUBSYSTEM', $argv[1]);
-
-set_include_path(
-    implode(':', [
-    __ROOTDIR__.'/az4'
-    , __ROOTDIR__.'/common'
-    , __ROOTDIR__])
-);
+require_once __DIR__.'/common.php';
+require_once 'settings.php';
     
 //TODO: @include __ROOT__.'/vendor/autoload.php';
 
@@ -19,28 +12,25 @@ set_include_path(
 //     : 'prod')
 // );
 
-mb_internal_encoding("UTF-8");
-
-
-$http = new Swoole\Http\Server("0.0.0.0", 9580);
+$http = new Swoole\Http\Server("0.0.0.0", \az\settings\SERVER_PORT);
 
 $http->set([
-    'max_coroutine' => 3000,
+    'max_coroutine' => \az\settings\MAX_COROUTINE,
     'enable_deadlock_check' => true,
 
     'hook_flags' => SWOOLE_HOOK_ALL,
 
     'enable_preemptive_scheduler' => true, //??
 
-    'worker_num' => 2, // TODO: dev/prod
+    'worker_num' => \az\settings\WORKER_NUM,
 
     'max_request' => 1000, //10_000 may be better
 
-    'max_connection' => 1000, // TODO: dev/prod
+    'max_connection' => \az\settings\MAX_CONNECTION,
 
     'dispatch_mode' => 1, // NOTE: stateless!
 
-    'package_max_length' => 10_1000_1000, // 10M
+    'package_max_length' => \az\settings\PACKAGE_MAX_LENGTH, 
 
     'open_cpu_affinity' => true,
     'cpu_affinity_ignore' => [0],
@@ -48,7 +38,7 @@ $http->set([
     // 'enable_delay_receive' ???
 
     // 'reload_async' dev/prod?
-    'max_wait_time' => 0.1, // it is dev! TODO:prod
+    'max_wait_time' => \az\settings\MAX_WAIT_TIME,
 
     'tcp_fastopen' => true, // def = false!
 
@@ -61,7 +51,7 @@ $http->set([
 
     // 'max_queued_bytes' //????
 
-    'admin_server' => '0.0.0.0:9582',
+    'admin_server' => \az\settings\ADMIN_SERVER,
     
     //'http_parse_cookie' => false,
     //'http_parse_post' => false,
@@ -73,9 +63,8 @@ $http->set([
     // nginx responsibility
     //'upload_max_filesize' => 5 * 1024,
 
-    'max_concurrency' => 1000_1000,
-    'worker_max_concurrency' => 10_1000,
-
+    'max_concurrency' => \az\settings\MAX_CONCURRENCY,
+    'worker_max_concurrency' => \az\settings\WORKER_MAX_CONCURRENCY,
 
 ]);
 
@@ -104,6 +93,27 @@ $http->on('request', function ($request, $response) use($http) {
     if(str_ends_with($path, '/')) {
         $response->status(400, 'dir?');
         return;                
+    }
+
+    if(preg_match('#^(?<=/)'.\az\settings\AUTHENTICATED_URLS.'(?=/)#', $path, $m)){
+        // need auth
+        $need_role = $m[0];
+        // TODO: auth
+        \az\access\check_headers($request->header);
+
+        $currentUser = \az\access\loginUser($request);
+        $request->server['current_user'] = $currentUser;
+        $response->header('authorization', $currentUser->authorizationHeader());
+        $response->header('x-cc', \az\settings\CLIENT_KEY);
+        if(array_key_exists('x-saved-token', $request->header)) {
+            // copy back impersonation token
+            $response->header('x-saved-token', $request->header['x-saved-token']);
+        }
+    }
+    if(preg_match('#^/internal/#', $path, $m)){
+        if(@$request->header['internal-key'] !== \az\settings\INTERNAL_KEY) {
+            throw new \ResourceForbidden('internal');
+        }
     }
 
     $api_index = "";
@@ -157,7 +167,13 @@ $http->on('request', function ($request, $response) use($http) {
     }
     found:
 
+    $ctx = Swoole\Coroutine::getContext();
+    $ctx['request'] = $request;
+    $ctx['response'] = $response;
+
+    $request->server['full_path'] = $src_path;
     $request->server['path_info'] = substr($src_path, strlen($path));
+    $request->server['handler_path'] = $path;
     try {
         $route($request, $response);
     } catch(ResourceError $e) {
@@ -223,22 +239,6 @@ $http->start();
 //         }
 //     });    
 // }
-
-
-function safe_require_once(string $path, ?array $vars = []) {
-    extract($vars);
-    require_once($path);
-    // watch_changes();
-}
-
-function critical_section(callable $func) {
-    $old = ini_set("swoole.enable_preemptive_scheduler", "0");
-    try{
-        $func();
-    } finally {
-        ini_set("swoole.enable_preemptive_scheduler", $old);
-    }
-}
 
 
 // $func: ($request, $responce) => void

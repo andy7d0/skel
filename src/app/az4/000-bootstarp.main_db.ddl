@@ -296,7 +296,6 @@ CREATE FUNCTION login.shadow_info(x text) RETURNS record
     AS $$ SELECT 'user_'||sysrole, phash2 FROM login.logins WHERE login = x $$;
 
 
-
 CREATE FUNCTION public.reset_connection(p_login text DEFAULT NULL::text, p_id text DEFAULT NULL::text
     , p_h text DEFAULT NULL::text, p_version text DEFAULT NULL::text) RETURNS boolean
     LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -329,8 +328,9 @@ begin
                     )
                    , true)
         ;   
+        -- TODO: if current role is distinct from login role, set role to login role
     else
-        raise exception check_violation;
+        raise exception insufficient_privilege;
     end if;
     return true;
 end 
@@ -361,3 +361,95 @@ end$$;
     which is authenticated by peer (as effective user of pg_bouncer process)
     alternatively, we can trust pg_bouncer but restrict access with scoket permission
 */
+
+
+CREATE SCHEMA IF NOT EXISTS cls;
+GRANT USAGE ON SCHEMA cls TO user_user;
+
+-- CLS UPDATER
+
+-- helper 
+CREATE FUNCTION cls.already_processed_version(scm text, name text, data jsonb) RETURNS boolean 
+LANGUAGE plpgsql AS $$
+    DECLARE 
+        vhash text = encode(sha256(convert_to(data::text,'UTF8')),'hex');
+        ver text;
+    BEGIN
+        if to_regproc(scm||'.'||quote_ident(name||'.version')) is not null then
+            EXECUTE format('SELECT %I.%I()',scm, name||'.version') INTO ver;
+            if ver = vhash then
+                return true;
+            end if;
+        end if;
+
+        EXECUTE format('CREATE OR REPLACE FUNCTION %I.%I() RETURNS text LANGUAGE sql AS $f$ SELECT %L $f$'
+                , scm, name||'.version', vhash);
+        return false;
+    END
+$$;
+
+
+CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
+    LANGUAGE plpgsql STRICT LEAKPROOF
+    AS $$
+    DECLARE
+        dict_name text; dict_data jsonb;
+    BEGIN
+        FOR dict_name,dict_data IN SELECT k,v FROM jsonb_each(c) _(k,v)
+        LOOP
+            if cls.already_processed_version('cls',dict_name,dict_data) then continue; end if;
+
+            EXECUTE format('DROP TABLE IF EXISTS cls.%I', dict_name);
+            EXECUTE format($_$
+                    CREATE TABLE cls.%I (
+                        k text COLLATE "C" NOT NULL PRIMARY KEY,
+                        r text COLLATE "C",
+                        v jsonb NOT NULL
+                    )
+                    WITH (fillfactor='100');
+                $_$, dict_name);
+
+            EXECUTE format('CREATE INDEX %2$I  ON cls.%1$I (r) INCLUDE(k) WITH (fillfactor=''90'', deduplicate_items=''true'')'
+                , dict_name, dict_name||'.rev');
+
+            EXECUTE format('GRANT SELECT ON TABLE cls.%I TO user_user', dict_name);
+
+            EXECUTE format('DROP FUNCTION IF EXISTS cls.%I', dict_name||'.decode');
+            EXECUTE format('DROP FUNCTION IF EXISTS cls.%I', dict_name||'.encode');
+            EXECUTE format('DROP FUNCTION IF EXISTS cls.%I', dict_name||'.data');
+
+            EXECUTE format($_$ CREATE OR REPLACE FUNCTION cls.%2$I(text) RETURNS text LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
+                    AS $f$select r from cls.%1$I where k = $1 $f$ $_$
+                , dict_name, dict_name||'.decode');
+            EXECUTE format($_$ CREATE OR REPLACE FUNCTION cls.%2$I(text) RETURNS jsonb LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
+                    AS $f$select v from cls.%1$I where k = $1 $f$ $_$
+                , dict_name, dict_name||'.data');
+            EXECUTE format($_$ CREATE OR REPLACE FUNCTION cls.%2$I(text) RETURNS text LANGUAGE sql STABLE STRICT LEAKPROOF PARALLEL SAFE
+                    AS $f$select k from cls.%1$I where r = $1 $f$ $_$
+                , dict_name, dict_name||'.encode');
+
+            EXECUTE format('TRUNCATE cls.%I', dict_name);
+
+            EXECUTE format($_$
+                INSERT INTO cls.%I(k, v, r)
+                SELECT k, val, 
+                    (case jsonb_typeof(val)
+                    when 'object' then
+                        (SELECT case jsonb_typeof(v)
+                                when 'object' then null
+                                when 'array' then null
+                                when 'null' then null
+                                else v #>> '{}'
+                                end
+                            FROM jsonb_each(val) _(k,v) LIMIT 1)
+                    when 'array' then NULL
+                    when 'null' then NULL
+                    else val #>> '{}'
+                    end)
+                FROM jsonb_each($1) _(k,val);
+                $_$, dict_name)
+            USING dict_data;
+
+        END LOOP;
+    END$$;
+
