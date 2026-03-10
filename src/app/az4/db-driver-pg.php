@@ -251,8 +251,7 @@ function connect($db, $login, $pass) {
 
 	$conn->setConnectionInitials(
 		function($conn){
-			$ctx = \getRequestContext();
-			$currentUser = @$ctx['request']->server['current_user'];
+			$currentUser = @$conn->requestContext['request']->server['current_user'];
 
 			\az\settings\resetConnection($conn, $currentUser);
 		}

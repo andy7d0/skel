@@ -1,7 +1,8 @@
 <?php namespace az\db\driver;
 
 class AbstractDatabaseConnection {
-	var $transactionLevel = 0;
+	public int $transactionLevel = 0;
+	public ?object $requestContext = null;
 
 	function executeWithParams($cmd, $args, $cmd_info = null) {}
 	function parepareCommand($cmd, $cmd_info) {}
@@ -120,12 +121,16 @@ function connect(
 		$connection = $driver($dbObj, $user, $pass);
 		if(!$connection) return; // bad params		
 	}
+	$connection->requestContext = $ctx;
 	$ctx['db-connections'][$key] = $connection;
 
 	// even if request in UNpooled, we return results into pool
 	\Swoole\Coroutine::defer(function() use($ctx, $db, $key, $LRU) {
-		if(@$ctx['db-connections'][$key])
-			$LRU[$db]->put($key, $ctx['db-connections'][$key]); // put connection back to global pool
+		$connection = @$ctx['db-connections'][$key];
+		if($connection){
+			$connection->requestContext = null;
+			$LRU[$db]->put($key, $connection); // put connection back to global pool
+		}
 	});
 	return $connection;	
 }
