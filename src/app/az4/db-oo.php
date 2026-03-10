@@ -142,11 +142,7 @@ class CommandPrepared {
     	$this->method = $src->method;
 	}
     function __invoke(...$args) {
-    	$a = [];
-		foreach($this->names as $name) {
-			//todo: check!
-			$a[] = array_key_exists($name, $args)? $args[$name] : $this->args[$name];
-		}
+    	$a = [...$this->args, ...$args];
     	if($this->method) {
 	        $ret = $this->cmd->executePrepared($a);
     		$ret = $ret->{$this->method}();

@@ -221,33 +221,27 @@ class PDODatabaseStmt extends \az\db\driver\AbstractDatabaseStmt {
 	}
 }
 
-function connect($db, $login = null, $pass = null) {
+function connect($db, $login, $pass) {
 	$dsn = $db['server'];
 		
-	  $params = [
-	  	\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
-	  	, \PDO::ATTR_ORACLE_NULLS => \PDO::ATTR_ORACLE_NULLS
-	  ];
+	$params = [
+		\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
+		, \PDO::ATTR_ORACLE_NULLS => \PDO::ATTR_ORACLE_NULLS
+	];
 
-	  if(@$db['pooling'] != 'no') {
-			$params[\PDO::ATTR_PERSISTENT] = true;
-	  }
+	$params[\PDO::ATTR_EMULATE_PREPARES] = true;
 
-	  $params[\PDO::ATTR_EMULATE_PREPARES] = true;
-
-		// we have own pool so no system persistent connections
+	// we have own pool so no system persistent connections
+	$params[\PDO::ATTR_PERSISTENT] = false;
+	if(
+		@$db['pooling'] === 'no'
+	||
+		$login !== @$db['user']
+	) {
+		// explicit login info
+		// if user/pass vary persistent usually useless 
 		$params[\PDO::ATTR_PERSISTENT] = false;
-		if(!@$db['fixed_user'] && $login) {
-			// explicit login info
-			$user = $login;
-			$pass = $pass;
-			// if user/pass vary persistent usually useless 
-			$params[\PDO::ATTR_PERSISTENT] = false;
-		} else {
-			// fallback to ini-stored creds
-		  	$user = @$db['user'];
-		  	$pass = @$db['pass'];
-		}
+	}
 
   	//error_log("DB CONN $dsn $user $pass");
 	$conn =  function_exists('az\settings\dbConnector')?

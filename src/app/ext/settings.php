@@ -196,10 +196,10 @@ function resetConnection($conn, $currentUser){
 }
 
 function impersonate($target, $currentUser) {
-	$db = \az\db\driver\connectAsCurrentUserPooled('main'); 
-	
-	$info = $db->executeWithParams("SELECT user_staff.get_uinfo_somebody(?)", [$target], ['cmd'=>'login'])
-			->fetchColumn();
+	\az\safe_require_once(__ROOTDIR__.'/az4/db-oo.php');
+
+	$info = \az\db\SelectColumn("user_staff.get_uinfo_somebody(?)")($target);
+
 	if(!$info) return;
 
 	$acces = (array)$info;

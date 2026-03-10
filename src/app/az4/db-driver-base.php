@@ -73,12 +73,21 @@ function connect(
 		string $db
 		, ?string $login = null, ?string $pass = null
 		, bool $pooled = true) {
-	$dbObj = \az\settings\DATABASES[$db];
-	static $LRU = [];
-	$key = "$db:$login:$pass";
 
+	static $LRU = [];
+	
+	$dbObj = \az\settings\DATABASES[$db];
 	$ctx = \getRequestContext();
+	if($login === null) {
+		$currentUser = @$ctx['request']->server['current_user'];
+		if($currentUser) {
+			$login = $currentUser?->dbLogin();
+			$pass = $currentUser?->dbPass();
+		}
+	}
+
 	// co-part, no need to protect
+	$key = "$db:$login:$pass";
 	$ctx['db-connections'] ??= [];
 	$connection = @$ctx['db-connections'][$key];
 	if($connection) return $connection;
@@ -97,7 +106,18 @@ function connect(
 
 		if($lib) \az\safe_require_once($lib);
 
-		$connection = $driver($dbObj, $login, $pass);
+		if(!@$dbObj['fixed_user'] && $login) {
+			// explicit login info
+			$user = $login;
+			$pass = $pass;
+			// if user/pass vary persistent usually useless 
+		} else {
+			// fallback to ini-stored creds
+			$user = @$dbObj['user'];
+			$pass = @$dbObj['pass'];
+		}
+
+		$connection = $driver($dbObj, $user, $pass);
 		if(!$connection) return; // bad params		
 	}
 	$ctx['db-connections'][$key] = $connection;
@@ -110,9 +130,5 @@ function connect(
 	return $connection;	
 }
 
-function connectAsCurrentUserPooled($db) {
-	$ctx = \getRequestContext();
-	$currentUser = @$ctx['request']->server['current_user'];
-	return connect($db, $currentUser?->dbLogin(), $currentUser?->dbPass());
-}
+function connectAsCurrentUserPooled($db) { return connect($db); }
 
