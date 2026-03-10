@@ -1,7 +1,6 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes,Route, Link} from "react-router-dom"
+import { lazy, Suspense, useState, createContext, useContext, useEffect } from 'react';
+import { BrowserRouter as Router, Routes,Route, Link, useNavigate} from "react-router-dom"
 
-import reactLogo from './assets/react.svg';
 // eslint-disable-next-line no-unassigned-import
 import './App.css';
 
@@ -10,6 +9,8 @@ import {mtest} from './tests/form-test'
 import {Date} from 'azlib/components/controls'
 
 import {api_post} from 'azlib/api.mjs'
+
+import {setAuthToken, subscribe, broadcast, getLoggedState, logout, login} from 'azlib/common.mjs'
 
 
 const ExtApp = lazy(()=> import(
@@ -23,16 +24,19 @@ const IntApp = lazy(()=> import(
 
 
 function DefApp() {
+  const uinfo = useUinfo()
+  const navigate = useNavigate()
   return (
     <div className="App">
       <h1>Rspack + React!</h1>
-      <Link to="login">login</Link>
+      {uinfo.login} {uinfo.login && <button onClick={()=>{logout(navigate)}}>logout</button>}
+      {!uinfo.login &&
+        <Link to="login">login</Link>}
       <div className="card">
         <p>
-          Edit <code>src/client/App.jsx</code> and save to test HMR
+          <Link to="ext_app">ext</Link>
         </p>
         <p>
-          <Link to="ext_app">ext</Link>
           <Link to="int/int_app">int</Link>
         </p>
       </div>
@@ -56,7 +60,7 @@ function App() {
   return (
     <Router>
     <Routes>
-      <Route path="*" element={<UserApp />}/>
+      <Route path="*" element={<UinfoContext><UserApp /></UinfoContext>}/>
     </Routes>
    </Router>
   );
@@ -81,28 +85,50 @@ function UserApp() {
 }
 
 function LoginPage() {
+  const [err, setErr] = useState()
+  const navigate = useNavigate()
   return <div>
     <form onSubmit={async (event)=> {
       event.preventDefault();
+      setErr(null)
       const data = new FormData(event.target);
       const obj = Object.fromEntries(data.entries())
-      const uinfo = await login(obj)
+      const uinfo = await login(()=>api_post('/app/ext/anonymous/login',obj))
+      if(typeof uinfo === 'string') {
+        setErr(uinfo)
+        return;
+      }
+      await setAuthToken(uinfo)
+      navigate('/')
     }} >
     Login: <input name="login" />
     <br/>
     Pass: <input name="pass" type="password" />
     <br/>
     <button>OK</button>
+    {err}
     </form>
   </div>
 }
 
-async function login(form) {
-  const r = await api_post('/app/ext/anonymous/login',form);
-  if(!r) {
-    console.log('auth error');
-  }
-  console.log(r.authorization, r.info);
+const Uctx = createContext({})
+
+const empty = {}
+
+function UinfoContext({children}) {
+  const [uinfo, setUinfo] = useState()
+  useEffect(()=>{
+    const prev = subscribe('uinfo', setUinfo)
+    return () => subscribe('uinfo', prev)
+  },[setUinfo])
+  useEffect(()=>{
+    getLoggedState().then(st=>{broadcast('uinfo', st)})
+  }, [setUinfo])
+  return <Uctx value={uinfo?.info??empty}>{children}</Uctx>
+}
+
+export function useUinfo() {
+  return useContext(Uctx);
 }
 
 export default App;

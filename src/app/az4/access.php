@@ -139,16 +139,3 @@ function check_headers($headers, $raw_values) {
 	if($h !== $headers['x-sa']) throw new \ResourceForbidden('args');
 }
 
-function impersonate($target) {
-	$ctx = \Swoole\Coroutine::getContext();
-	$currentUser = @$ctx['request']->server['current_user'];
-	if(!$currentUser) return;
-	if(!$currentUser->has_role('user_staff')) return;
-
-	$impAuth = \az\settings\impersonate($target, $currentUser);
-
-	if(!$impAuth) return;
-
-	return $impAuth;
-}
-

@@ -233,6 +233,8 @@ function connect($db, $login = null, $pass = null) {
 			$params[\PDO::ATTR_PERSISTENT] = true;
 	  }
 
+	  $params[\PDO::ATTR_EMULATE_PREPARES] = true;
+
 		// we have own pool so no system persistent connections
 		$params[\PDO::ATTR_PERSISTENT] = false;
 		if(!@$db['fixed_user'] && $login) {

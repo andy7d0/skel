@@ -208,6 +208,14 @@ when '<=' then a <= b
 when '>=' then a >= b
 end$$;
 
+DROP FUNCTION utils.notice;
+CREATE FUNCTION utils.notice(label text, str text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE STRICT PARALLEL SAFE
+    AS $$begin
+        RAISE NOTICE '%: %', label, str;
+        return str;
+    end$$;
+
 CREATE FUNCTION utils.extract_number(str text) RETURNS numeric
     LANGUAGE sql IMMUTABLE STRICT LEAKPROOF PARALLEL SAFE
     AS $$select substring(str from '[0-9]+(?:[.][0-9]*)?')::numeric$$;
@@ -299,14 +307,13 @@ ALTER TABLE ONLY private.registrations ALTER COLUMN login SET STORAGE PLAIN;
 -- or [uname, pass(hash)] for anonymous
 CREATE FUNCTION login.shadow_info(x text) RETURNS record
     LANGUAGE sql STABLE STRICT SECURITY DEFINER LEAKPROOF PARALLEL SAFE
-    AS $$ SELECT 'user_'||sysrole, phash2 FROM private.logins WHERE login = x $$;
+    AS $$ SELECT 'user_'||sysrole as u, phash2 as p FROM private.logins WHERE login = x $$;
 
 
 CREATE FUNCTION public.reset_connection(p_login text DEFAULT NULL::text, p_id text DEFAULT NULL::text
     , p_h text DEFAULT NULL::text, p_version text DEFAULT NULL::text) RETURNS boolean
-    LANGUAGE plpgsql STABLE SECURITY DEFINER
-    AS $$
-begin
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$begin
     if p_version is not null then
         -- raise notice 'ver:%', p_version;
         if p_version is distinct from migration.db_version() then
@@ -319,11 +326,10 @@ begin
         set_config('azstate.personid', '', true),
         set_config('azstate.lpmac', '', true)
         ;   
-    else if
-        p_h is not distinct from 
-        private.person_tag(p_login,p_id)
+    elsif
+            p_h is not distinct from private.person_tag(p_login,p_id)
         or
-        session_user = 'postgres'
+            session_user = 'postgres'
     then
         perform 
         set_config('azstate.login', p_login, true),
@@ -334,7 +340,6 @@ begin
                     )
                    , true)
         ;   
-        -- TODO: if current role is distinct from login role, set role to login role
     else
         raise exception insufficient_privilege;
     end if;
@@ -368,7 +373,8 @@ $$;
  */
 CREATE FUNCTION user_user.get_uinfo(p_person bigint) RETURNS jsonb
     LANGUAGE plpgsql STABLE STRICT SECURITY DEFINER LEAKPROOF
-    AS $$declare 
+    AS $$
+declare 
     p_key text;
 begin 
     if current_user != 'postgres'
@@ -386,7 +392,7 @@ begin
         )
         from private.logins p
             , lateral (select private.person_tag(p.login,p.person::text) as tag ) t
-         where person = p_person)
+         where person = p_person);
 end;$$;
 
 CREATE FUNCTION user_staff.get_uinfo_somebody(p_person bigint) RETURNS jsonb
@@ -546,7 +552,7 @@ CREATE FUNCTION private.scram_gen(pass text) RETURNS text
         return r;
     end$$;
 
-IF migration.guard_migration('amdin_user') THEN
+IF migration.guard_migration('admin_user') THEN
     INSERT INTO private.logins(login,person,phash2,sysrole)
     VALUES('root', 0, private.scram_gen('1234'), 'admin');
 END IF;

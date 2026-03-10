@@ -121,7 +121,7 @@ function login($login, $pass, &$ret = null) {
 
 		и расшифровать все
 	*/
-	$info = $db->executeWithParams("SELECT login.get_uinfo(?)", [$login], ['cmd'=>'login'])
+	$info = $db->executeWithParams("SELECT public.get_uinfo(?)", [$login], ['cmd'=>'login'])
 			->fetchColumn();
 	if(!$info) return;
 	if(preg_match('/^(\d+):([^:]+):([^:]+):(.*)/s',$info, $m)) {

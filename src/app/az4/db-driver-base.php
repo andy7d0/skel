@@ -56,13 +56,10 @@ class AbstractDatabasePrepared {
 }
 
 class DBOOException extends \Exception {
-  public function __construct($e, $queryString, $args, $cmd = mull) {
+  public function __construct($e, $queryString, $args, $cmd = null) {
     parent::__construct(
-      //function_exists('az\model\userException')?
-      //  \az\model\userException($e, $queryString, $args, $cmd)
-      //:
-        $e->getMessage()
-        , $e->getCode()
+        $e->getMessage() . "#:{$e->getCode()}"
+        , is_int($e->getCode())? $e->getCode() : 0
         , $e
     );
   }

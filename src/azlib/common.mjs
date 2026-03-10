@@ -72,65 +72,71 @@ export async function customStore() {
           callback(db.transaction('keyval', txMode).objectStore('keyval'))
 }
 
-export async function updatePersonCache(personid, value) {
-  const version = sha256(value)
-  // save to cache
-  await setKV(`user.${personid}`,{version,value}, )
-}
-
-/**
- * save login state after succesful loging
- */
-export async function setLoggedState(_info) {
-  // send notifications to all windows
-  // that login changed
-  let at = await getKV('auth-token', await customStore()) // use local (per branch) store
-  if(!at) {
-    console.error('there is no token already set')
-    return;
-  }
-  //window.appState.broadcastMessage('login_changed', info, true)
-}
-
 /**
  * subscribe to login state changed!
  */
 
-async function logout(navigate){
-  await delKV('auth-token', await customStore())
-  //window.appState.broadcastMessage('login_changed', undefined, true)
-  navigate()
+export async function login(func) {
+  const r = await func();
+  if(!r) {
+    console.log('auth error');
+    return 'auth error';
+  }
+  console.log(r.authorization, r.info);
+  return r;
+}
+
+export async function logout(navigate){
+  await delKV('login-state', await customStore())
+  broadcast('uinfo', null)
+  navigate('/')
 }
 
 export async function getLoggedState() {
-  let at = await getKV('auth-token', await customStore()) // use local (per branch) store
+  let at = await getKV('login-state', await customStore()) // use local (per branch) store
   // logged, so return logout function!
-  if(at)
-    return {
-      subscriptionKey: '----------' 
-      , alienToken: !!at?.match(/Bearer: USER:/)
-      , logout
-    };
-  return null
+  // if(at)
+  //   return {
+  //     subscriptionKey: '----------'
+  //     , alien: !!at.saved
+  //     , uinfo: at.info 
+  //     , logout
+  //   };
+  return at;
+  // return null
 }
 
 export async function getAPIparams() {
-  const at = await getKV('auth-token', await customStore()) // use local (per branch) store
+  const at = await getKV('login-state', await customStore()) // use local (per branch) store
   const peer = getPeerCode()
-  return { integrity: at ? sha256.hmac(at, peer ) : ''
-          , token: at
+  return { integrity: at ? sha256.hmac(at.authorization, peer ) : ''
+          , token: at?.authorization
           , peer: peer
         }
 }
 
-export async function setAuthToken(token) {
-  await setKV('auth-token', token, await customStore())
-    // TODO: boadcast auth-token
+export async function setAuthToken(state) {
+  await setKV('login-state', state, await customStore())
+  broadcast('uinfo', state)
 }
 
 
+// called before impersonate
+// or to revert to (in this case returns saved token)
 export async function setSavedToken(token) {
-  await setKV('saved-token', token, await customStore())  
+  const store = await customStore();
+  if(token) {
+    await updateKV('login-state'
+      , prev => ({...prev, saved: token})
+      , store)
+  }
+  else {
+    const t = getKV('login-state', store)
+    if(t.saved) {
+      await updateKV('login-state', t.saved, store)  
+      broadcast('uinfo', t.saved)
+    }
+  }
 }
 
 export function isLocalServer() {
@@ -216,7 +222,10 @@ export function getGlobalUniqueCode() {
 
 let listeners = {}
 export function subscribe(code, fun) {
-  listeners[code] = fun;
+  const prev = listeners[code]
+  if(fun) listeners[code] = fun;
+  else delete listeners[code];
+  return prev;
 }
 
 let channel = new BroadcastChannel('bc-main') // from worker to main
@@ -227,7 +236,7 @@ channel.onmessage = event => {
 
 export function broadcast(code, data) {
   const msg = {...data, code}
-  defer({data:msg}).then(event=>listeners[code]?.(event))
+  defer(msg).then(event=>listeners[code]?.(event))
   // eslint-disable-next-line  require-post-message-target-origin
   channel.postMessage(msg)
 }

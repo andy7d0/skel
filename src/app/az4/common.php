@@ -41,7 +41,7 @@ class KeyedLRU {
 	function __construct(public int $max = 100) {}
 
 	function put($key, $item) {
-		return \az\critical_section(function() {
+		return \az\critical_section(function() use($item, $key) {
 			if($this->cnt > $this->max) {
 				$e = $this->first;
 				$n = $e->next;
@@ -53,14 +53,15 @@ class KeyedLRU {
 				if(!$this->keys[$k]) unset($this->keys[$k]);
 				--$this->cnt;
 			}
-			$e = new KeyedLRUItem($items, $key, $this->last, null);
-			$this->last = $this->last->next = $e;
+			$e = new KeyedLRUItem($item, $key, $this->last, null);
+			if($this->last) $this->last->next = $e;
+			$this->last = $e;
 			++$this->cnt;
 		});
 	}
 
 	function get($key) {
-		return \az\critical_section(function() {
+		return \az\critical_section(function() use($key) {
 			if(!array_key_exists($key, $this->keys)) return null;
 			$e = array_pop($this->keys[$key]);
 			

@@ -6,7 +6,21 @@ require_once 'access.php';
 	if(!$auth) return;
 	$info = $auth;
 	unset($info['person_access_tag']);
-	return ['authorization'=> AutorizedUser::authorizationHeader($auth)
+	unset($info['magic']);
+	return ['authorization'=> \az\access\AutorizedUser::authorizationHeader($auth)
 			, 'info' => $info];
 }
 ,__FILE__);
+
+/*
+impersonate: (should be in /ext/staff/ )
+
+	$auth = \az\settings\impersonate($target_id);
+	if(!$auth) return;
+	$info = $auth;
+	unset($info['person_access_tag']);
+	unset($info['magic']);
+	return ['authorization'=> \az\access\AutorizedUser::authorizationHeader($auth)
+			, 'info' => $info];
+
+*/
