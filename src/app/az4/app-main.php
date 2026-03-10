@@ -4,6 +4,10 @@ require_once __DIR__.'/common.php';
 require_once 'settings.php';
 
 use \Swoole\Coroutine;
+
+function getRequestContext() {
+    return \Swoole\Coroutine::getContext();
+}
     
 //TODO: @include __ROOT__.'/vendor/autoload.php';
 
@@ -161,7 +165,7 @@ $http->on('request', function ($request, $response) use($http) {
     }
     found:
 
-    $ctx = \Swoole\Coroutine::getContext();
+    $ctx = getRequestContext();
     $ctx['request'] = $request;
     $ctx['response'] = $response;
 

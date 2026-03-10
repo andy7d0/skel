@@ -257,7 +257,7 @@ function connect($db, $login = null, $pass = null) {
 
 	$conn->setConnectionInitials(
 		function($conn){
-			$ctx = \Swoole\Coroutine::getContext();
+			$ctx = \getRequestContext();
 			$currentUser = @$ctx['request']->server['current_user'];
 
 			\az\settings\resetConnection($conn, $currentUser);

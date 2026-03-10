@@ -77,7 +77,7 @@ function connect(
 	static $LRU = [];
 	$key = "$db:$login:$pass";
 
-	$ctx = \Swoole\Coroutine::getContext();
+	$ctx = \getRequestContext();
 	// co-part, no need to protect
 	$ctx['db-connections'] ??= [];
 	$connection = @$ctx['db-connections'][$key];
@@ -111,7 +111,7 @@ function connect(
 }
 
 function connectAsCurrentUserPooled($db) {
-	$ctx = \Swoole\Coroutine::getContext();
+	$ctx = \getRequestContext();
 	$currentUser = @$ctx['request']->server['current_user'];
 	return connect($db, $currentUser?->dbLogin(), $currentUser?->dbPass());
 }
