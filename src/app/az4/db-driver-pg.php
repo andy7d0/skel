@@ -245,8 +245,8 @@ function connect($db, $login, $pass) {
 
   	//error_log("DB CONN $dsn $user $pass");
 	$conn =  function_exists('az\settings\dbConnector')?
-				\az\settings\dbConnector($dsn, $user, $pass, $params)
-			: new \PDO($dsn, $user, $pass, $params);
+				\az\settings\dbConnector($dsn, $login, $pass, $params)
+			: new \PDO($dsn, $login, $pass, $params);
 	$conn = new PDODatabaseConnection($conn, $db);
 
 	$conn->setConnectionInitials(
