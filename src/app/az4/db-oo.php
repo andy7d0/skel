@@ -49,7 +49,7 @@ class Command {
     }
 
     function Transaction($f) {
-        $c = \az\connect\connectAsCurrentUserPooled($this->database);
+        $c = \az\db\driver\connectAsCurrentUserPooled($this->database);
         $ret = null;
         if($c->beginTransaction()) {
             try {
@@ -136,7 +136,7 @@ class CommandPrepared {
 		preg_match_all('/(?<=\s:)\S/', $c, $m);
 		$this->names = $m[0];
 
-    	$this->cmd = \az\connect\connectAsCurrentUserPooled($src->database)
+    	$this->cmd = \az\db\driver\connectAsCurrentUserPooled($src->database)
     					->parepareCommand($cmd,['cmd'=>$cmd]);
 
     	$this->method = $src->method;

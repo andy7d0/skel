@@ -70,90 +70,43 @@ class DBOOException extends \Exception {
 
 class DBVersionException extends \Exception {}
 
-
-function connectInt($db, $login = null, $pass = null) {
-	$db = \az\settings\DATABASES[$db];
-
-  $dsn = $db['server'];
-		
-	  $params = [
-	  	\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
-	  	, \PDO::ATTR_ORACLE_NULLS => \PDO::ATTR_ORACLE_NULLS
-	  ];
-
-	  if(@$db['pooling'] != 'no') {
-			$params[\PDO::ATTR_PERSISTENT] = true;
-			if(dialect($db)==='mssql') {
-			  //PDO persistent connections don't work in MS SQL
-			  $params[\PDO::ATTR_PERSISTENT] = false;
-			  $dsn .= ';ConnectionPooling=1';
-			}
-	  }
-
-	  if(dialect($db)==='pgsql') {
-			//$params[\PDO::PGSQL_ATTR_DISABLE_PREPARES] = true;
-		}
-
-		// we have own pool so no system persistent connections
-		$params[\PDO::ATTR_PERSISTENT] = false;
-		if(!@$db['fixed_user'] && $login) {
-			// explicit login info
-			$user = $login;
-			$pass = $pass;
-			// if user/pass vary persistent usually useless 
-			$params[\PDO::ATTR_PERSISTENT] = false;
-		} else {
-			// fallback to ini-stored creds
-		  	$user = @$db['user'];
-		  	$pass = @$db['pass'];
-	  }
-
-  	//error_log("DB CONN $dsn $user $pass");
-	$conn =  function_exists('az\settings\dbConnector')?
-				\az\settings\dbConnector($dsn, $user, $pass, $params)
-			: new \PDO($dsn, $user, $pass, $params);
-	$conn = new PDODatabaseConnection($conn, $db);
-
-	$conn->setConnectionInitials(
-		function($conn){
-			$ctx = Swoole\Coroutine\getContext();
-			$currentUser = @$ctx['request']->server['current_user'];
-
-			\az\settings\resetConnection($conn, $currentUser);
-		}
-	);
-
-  return $conn;
-}
-
 function dialect($a) { return @$a['dialect'] ?: @explode(':', @$a['server'], 2 )[0]; }
 
-function connect(string $db, ?string $login = null, ?string $pass = null, boolean $pooled = true) {
+function connect(
+		string $db
+		, ?string $login = null, ?string $pass = null
+		, bool $pooled = true) {
+	$dbObj = \az\settings\DATABASES[$db];
 	static $LRU = [];
 	$key = "$db:$login:$pass";
 
-	$ctx = Swoole\Coroutine::getContext();
+	$ctx = \Swoole\Coroutine::getContext();
 	// co-part, no need to protect
 	$ctx['db-connections'] ??= [];
 	$connection = @$ctx['db-connections'][$key];
 	if($connection) return $connection;
 
 	// initialize global connection cache	
-	critical_section(function() use(&$LRU, $db) {
-		$LRU[$db] ??= new KeyedLRU(@\az\settings\HOLDED_CONNECTIONS[$db]??1);
+	\az\critical_section(function() use(&$LRU, $db) {
+		$LRU[$db] ??= new \az\KeyedLRU(@\az\settings\HOLDED_CONNECTIONS[$db]??1);
 	});
 
 	// take from global, store in context
 	$connection = $pooled ? $LRU[$db]->get($key) : null;
 	if(!$connection) {
 		// slow path
-		$connection = connectInt($db, $login, $pass);
+		$lib = @$dbObj['lib'];
+		$driver = $dbObj['factory'];
+
+		if($lib) \az\safe_require_once($lib);
+
+		$connection = $driver($dbObj, $login, $pass);
 		if(!$connection) return; // bad params		
 	}
 	$ctx['db-connections'][$key] = $connection;
 
 	// even if request in UNpooled, we return results into pool
-	Swoole\Coroutine::defer(function() use($ctx, $db, $key, $LRU) {
+	\Swoole\Coroutine::defer(function() use($ctx, $db, $key, $LRU) {
 		if(@$ctx['db-connections'][$key])
 			$LRU[$db]->put($key, $ctx['db-connections'][$key]); // put connection back to global pool
 	});
@@ -161,8 +114,8 @@ function connect(string $db, ?string $login = null, ?string $pass = null, boolea
 }
 
 function connectAsCurrentUserPooled($db) {
-	$ctx = Swoole\Coroutine\getContext();
+	$ctx = \Swoole\Coroutine::getContext();
 	$currentUser = @$ctx['request']->server['current_user'];
-	return connect($db, $currentUser?->login(), $currentUser?->pass());
+	return connect($db, $currentUser?->dbLogin(), $currentUser?->dbPass());
 }
 

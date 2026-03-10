@@ -1,6 +1,6 @@
 <?php namespace az;
 
-define('__ROOTDIR__', basename(__DIR__));
+define('__ROOTDIR__', dirname(__DIR__));
 define('SUBSYSTEM', $argv[1]);
 
 set_include_path(
@@ -41,7 +41,7 @@ class KeyedLRU {
 	function __construct(public int $max = 100) {}
 
 	function put($key, $item) {
-		critical_section(function() use($this) {
+		return \az\critical_section(function() {
 			if($this->cnt > $this->max) {
 				$e = $this->first;
 				$n = $e->next;
@@ -56,11 +56,11 @@ class KeyedLRU {
 			$e = new KeyedLRUItem($items, $key, $this->last, null);
 			$this->last = $this->last->next = $e;
 			++$this->cnt;
-		})
+		});
 	}
 
 	function get($key) {
-		return critical_section(function() use($this) {
+		return \az\critical_section(function() {
 			if(!array_key_exists($key, $this->keys)) return null;
 			$e = array_pop($this->keys[$key]);
 			
@@ -73,6 +73,6 @@ class KeyedLRU {
 			--$this->cnt;
 
 			return $e->item;
-		})
+		});
 	}
 }

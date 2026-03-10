@@ -7,6 +7,12 @@ ALTER DATABASE main_db SET client_min_messages TO 'warning';
 ALTER DATABASE main_db SET bytea_output TO 'hex';
 ALTER DATABASE main_db SET search_path TO 'operators';
 
+CREATE SCHEMA IF NOT EXISTS pgc;
+GRANT USAGE ON SCHEMA pgc TO PUBLIC;
+
+CREATE SCHEMA IF NOT EXISTS utils;
+GRANT USAGE ON SCHEMA utils TO PUBLIC;
+
 CREATE SCHEMA IF NOT EXISTS login;
 GRANT USAGE ON SCHEMA login TO sysuser_auth;
 
@@ -21,17 +27,13 @@ GRANT USAGE ON SCHEMA logs TO user_user;
 CREATE SCHEMA IF NOT EXISTS operators;
 GRANT USAGE ON SCHEMA operators TO user_user;
 
-CREATE SCHEMA IF NOT EXISTS pgc;
-GRANT USAGE ON SCHEMA pgc TO PUBLIC;
-
 CREATE SCHEMA IF NOT EXISTS store;
 GRANT USAGE ON SCHEMA store TO user_sysop;
 
-CREATE SCHEMA IF NOT EXISTS utils;
-GRANT USAGE ON SCHEMA utils TO PUBLIC;
-
 CREATE SCHEMA IF NOT EXISTS user_user;
 GRANT USAGE ON SCHEMA user_user TO user_user;
+CREATE SCHEMA IF NOT EXISTS user_staff;
+GRANT USAGE ON SCHEMA user_staff TO user_staff;
 CREATE SCHEMA IF NOT EXISTS user_sysop;
 GRANT USAGE ON SCHEMA user_sysop TO user_sysop;
 CREATE SCHEMA IF NOT EXISTS user_admin;
@@ -83,10 +85,14 @@ COMMENT ON TABLE migration.guards IS 'guard marks for migrations';
 
 CREATE FUNCTION migration.guard_migration(p_key text, p_value text DEFAULT null) RETURNS boolean
     LANGUAGE plpgsql 
-    AS $$
-begin
+    AS $$begin
     INSERT INTO migration.guards (guard_key, guard_value) VALUES (p_key, p_value) ON CONFLICT DO NOTHING;
-    RETURN NOT FOUND;
+    IF FOUND THEN RETURN true; END IF;
+    UPDATE migration.guards 
+        SET guard_value = p_value 
+        WHERE guard_key = p_key
+        AND guard_value IS DISTINCT FROM p_value;
+    RETURN FOUND;
 end$$;
 
 -- usage IF migration.guard_migration('some_op_marker', 'version') THEN
@@ -256,7 +262,7 @@ CREATE FUNCTION private.server_key() RETURNS text
     AS $$select 'sdsdaalfjkjtro2357109423487482517175438217234782351897171'$$;
 -- NOTE: replace this key in production!!!!!
 
-CREATE FUNCTION private.check_person_key(p_login text, p_id text) RETURNS text
+CREATE FUNCTION private.person_tag(p_login text, p_id text) RETURNS text
     LANGUAGE sql IMMUTABLE STRICT LEAKPROOF COST 1 PARALLEL SAFE
     AS $$
     select encode(pgc.hmac(concat(p_login,':',p_id), private.server_key() ,'sha256'),'hex')$$;
@@ -293,7 +299,7 @@ ALTER TABLE ONLY private.registrations ALTER COLUMN login SET STORAGE PLAIN;
 -- or [uname, pass(hash)] for anonymous
 CREATE FUNCTION login.shadow_info(x text) RETURNS record
     LANGUAGE sql STABLE STRICT SECURITY DEFINER LEAKPROOF PARALLEL SAFE
-    AS $$ SELECT 'user_'||sysrole, phash2 FROM login.logins WHERE login = x $$;
+    AS $$ SELECT 'user_'||sysrole, phash2 FROM private.logins WHERE login = x $$;
 
 
 CREATE FUNCTION public.reset_connection(p_login text DEFAULT NULL::text, p_id text DEFAULT NULL::text
@@ -315,7 +321,7 @@ begin
         ;   
     else if
         p_h is not distinct from 
-        private.check_person_key(p_login,p_id)
+        private.person_tag(p_login,p_id)
         or
         session_user = 'postgres'
     then
@@ -335,6 +341,74 @@ begin
     return true;
 end 
 $$;
+
+/**
+ *  this function called by login and cache update
+ *  without protecition, so by anybody
+ *  to be secure this function encrypt returned info
+ *  with the user's scramed pass
+ *  so only who knows user's pass can really access the info
+ *  returned info contains access tag
+ *  enverybody who knows it can represent itself as the user
+ */
+
+CREATE FUNCTION public.get_uinfo(p_login text) RETURNS text 
+    LANGUAGE sql STABLE STRICT SECURITY DEFINER LEAKPROOF
+    AS $$select utils.scram_enc(
+    phash2, 
+    user_user.get_uinfo(person)::text) 
+    from private.logins where login = p_login
+$$;
+
+
+/**
+ *  this function called securely
+ *  and internally enshures that only an legitimate user or super 
+ *  gets the info 
+ */
+CREATE FUNCTION user_user.get_uinfo(p_person bigint) RETURNS jsonb
+    LANGUAGE plpgsql STABLE STRICT SECURITY DEFINER LEAKPROOF
+    AS $$declare 
+    p_key text;
+begin 
+    if current_user != 'postgres'
+    and p_person != user_user.current_personid()
+    then
+        raise insufficient_privilege;
+    end if;
+    return (select
+        json_object(
+            'magic': encode(pgc.digest(t.tag, 'sha256'), 'hex')
+            , 'login': p.login
+            , 'personid': p.person
+            , 'sysrole': p.sysrole
+            , 'person_access_tag': t.tag
+        )
+        from private.logins p
+            , lateral (select private.person_tag(p.login,p.person::text) as tag ) t
+         where person = p_person)
+end;$$;
+
+CREATE FUNCTION user_staff.get_uinfo_somebody(p_person bigint) RETURNS jsonb
+    LANGUAGE plpgsql STABLE STRICT SECURITY DEFINER LEAKPROOF
+    as $$
+begin
+    if (select coalesce(sysrole,'user') from private.logins where person = p_person)
+        = ANY(case (select sysrole from private.logins where person = user_user.current_personid())
+            when 'admin' then '{sysop,staff,semistaff,user}'
+            when 'sysop' then '{staff,semistaff,user}'
+            when 'staff' then '{semistaff,user}'
+            when 'semistaff' then '{user}'
+            else null
+            end::text[]
+        )
+    then
+        return (SELECT user_user.get_uinfo(p_person));
+    else 
+        raise insufficient_privilege;
+    end if;
+end$$;
+
 
 CREATE FUNCTION user_user.current_personid() RETURNS integer
     LANGUAGE plpgsql STABLE SECURITY DEFINER LEAKPROOF COST 1
@@ -452,4 +526,28 @@ CREATE FUNCTION cls.update_classifiers(c jsonb) RETURNS void
 
         END LOOP;
     END$$;
+
+-- after trigger for custom person table to delete logins when person deleted
+CREATE FUNCTION store.delete_login() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$begin
+        DELETE FROM private.logins WHERE person = old.person;
+        RETURN NULL;
+    end$$;
+
+CREATE FUNCTION private.scram_gen(pass text) RETURNS text
+    LANGUAGE plpgsql STRICT SECURITY DEFINER LEAKPROOF
+    AS $$declare
+        r text;
+    begin
+        EXECUTE format('CREATE USER tmp_user_for_hash PASSWORD %L', pass);    
+        SELECT rolpassword into r FROM pg_catalog.pg_authid WHERE rolname = 'tmp_user_for_hash';
+        DROP USER tmp_user_for_hash;
+        return r;
+    end$$;
+
+IF migration.guard_migration('amdin_user') THEN
+    INSERT INTO private.logins(login,person,phash2,sysrole)
+    VALUES('root', 0, private.scram_gen('1234'), 'admin');
+END IF;
 

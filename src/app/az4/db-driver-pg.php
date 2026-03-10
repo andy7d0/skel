@@ -1,8 +1,8 @@
-<?php namespace az\db\driver;
+<?php namespace az\db\driver\PDO\php;
 require_once __DIR__.'/db-driver-base.php';
 
 #[\AllowDynamicProperties]
-class PDODatabaseConnection extends AbstractDatabaseConnection {
+class PDODatabaseConnection extends \az\db\driver\AbstractDatabaseConnection {
 	var $realConnection = null;
 	var $connectionInitials = null;
 	var $initMode = null; 
@@ -19,7 +19,7 @@ class PDODatabaseConnection extends AbstractDatabaseConnection {
 		// copy ini settings to connection object
 	    foreach($db as $k=>$v)
 	    	$this->$k = $v; //copy ini keys	
-	    $this->dialect = dialect($db);
+	    $this->dialect = \az\db\driver\dialect($db);
 	}	
 
 	function executeWithParams($cmd, $args, $cmd_info = null) {
@@ -68,11 +68,11 @@ class PDODatabaseConnection extends AbstractDatabaseConnection {
 	}
 }
 
-class PDODatabasePrepared extends AbstractDatabasePrepared {
+class PDODatabasePrepared extends \az\db\driver\AbstractDatabasePrepared {
 	function __construct(public $stmt, public $cmd_info, public $conn) {}
 
 	function executePrepared($args) {
-		$args = AbstractDatabaseConnection::prepare_db_args($args);
+		$args = \az\db\driver\AbstractDatabaseConnection::prepare_db_args($args);
 		try {
 			// in some modes we should init connecton here!
 			//  it allows connection pooling
@@ -95,7 +95,7 @@ class PDODatabasePrepared extends AbstractDatabasePrepared {
 				$this->stmt->execute($args);
 			return new PDODatabaseStmt($this->stmt);
 		} catch(\PDOException $e) {
-			throw new \az\connect\DBOOException($e, $this->stmt->queryString, $args, @$this->cmd_info);
+			throw new \az\db\driver\DBOOException($e, $this->stmt->queryString, $args, @$this->cmd_info);
 		}
 	}
 
@@ -103,7 +103,7 @@ class PDODatabasePrepared extends AbstractDatabasePrepared {
 	    try {
 	    	$ret = $this->executePrepared($args);
 	    } catch(\PDOException $e) {
-	        throw new \az\connect\DBOOException($e, $this->stmt->queryString, $args, @$this->cmd_info);
+	        throw new \az\db\driver\DBOOException($e, $this->stmt->queryString, $args, @$this->cmd_info);
 	    }
 		if(preg_match('#^/*lastInsertedId_[a-zA-Z0-9]+#', $this->stmt->queryString, $m)) {
 			$f = "\\az\\sql_dialects\\lastInsertedId_$m[1]";
@@ -113,7 +113,7 @@ class PDODatabasePrepared extends AbstractDatabasePrepared {
 	}
 }
 
-class PDODatabaseStmt extends AbstractDatabaseStmt {
+class PDODatabaseStmt extends \az\db\driver\AbstractDatabaseStmt {
 	var $stmt = null;
 	var $jsoned = [];
 	function __construct($pdo_stmt) { 
@@ -219,4 +219,48 @@ class PDODatabaseStmt extends AbstractDatabaseStmt {
 		$this->stmt->setFetchMode(\PDO::FETCH_NUM);
 		return $this->stmt; 
 	}
+}
+
+function connect($db, $login = null, $pass = null) {
+	$dsn = $db['server'];
+		
+	  $params = [
+	  	\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION
+	  	, \PDO::ATTR_ORACLE_NULLS => \PDO::ATTR_ORACLE_NULLS
+	  ];
+
+	  if(@$db['pooling'] != 'no') {
+			$params[\PDO::ATTR_PERSISTENT] = true;
+	  }
+
+		// we have own pool so no system persistent connections
+		$params[\PDO::ATTR_PERSISTENT] = false;
+		if(!@$db['fixed_user'] && $login) {
+			// explicit login info
+			$user = $login;
+			$pass = $pass;
+			// if user/pass vary persistent usually useless 
+			$params[\PDO::ATTR_PERSISTENT] = false;
+		} else {
+			// fallback to ini-stored creds
+		  	$user = @$db['user'];
+		  	$pass = @$db['pass'];
+		}
+
+  	//error_log("DB CONN $dsn $user $pass");
+	$conn =  function_exists('az\settings\dbConnector')?
+				\az\settings\dbConnector($dsn, $user, $pass, $params)
+			: new \PDO($dsn, $user, $pass, $params);
+	$conn = new PDODatabaseConnection($conn, $db);
+
+	$conn->setConnectionInitials(
+		function($conn){
+			$ctx = \Swoole\Coroutine::getContext();
+			$currentUser = @$ctx['request']->server['current_user'];
+
+			\az\settings\resetConnection($conn, $currentUser);
+		}
+	);
+
+  return $conn;
 }

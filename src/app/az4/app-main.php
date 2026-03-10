@@ -2,6 +2,8 @@
 
 require_once __DIR__.'/common.php';
 require_once 'settings.php';
+
+use \Swoole\Coroutine;
     
 //TODO: @include __ROOT__.'/vendor/autoload.php';
 
@@ -12,7 +14,7 @@ require_once 'settings.php';
 //     : 'prod')
 // );
 
-$http = new Swoole\Http\Server("0.0.0.0", \az\settings\SERVER_PORT);
+$http = new \Swoole\Http\Server("0.0.0.0", \az\settings\SERVER_PORT);
 
 $http->set([
     'max_coroutine' => \az\settings\MAX_COROUTINE,
@@ -78,9 +80,12 @@ $http->on('request', function ($request, $response) use($http) {
         return;
     }
 
+    if(str_ends_with($path, '/')) {
+        $response->status(400, 'dir?');
+        return;                
+    }
+
     //TODO: define('__PEER__', @$_SERVER['HTTP_X_PEER']);
-
-
 
     //error_log(@$request->server['query_string']??'---');
     //error_log(var_export($request->get, true));
@@ -90,25 +95,14 @@ $http->on('request', function ($request, $response) use($http) {
     }
     $path = preg_replace('#^/app/(ext|int|par)/#', '/', $path);
 
-    if(str_ends_with($path, '/')) {
-        $response->status(400, 'dir?');
-        return;                
-    }
-
     if(preg_match('#^(?<=/)'.\az\settings\AUTHENTICATED_URLS.'(?=/)#', $path, $m)){
         // need auth
         $need_role = $m[0];
         // TODO: auth
-        \az\access\check_headers($request->header);
+        \az\access\check_headers( $request->header, @$request->get ?: $request->getContent() );
 
         $currentUser = \az\access\loginUser($request);
         $request->server['current_user'] = $currentUser;
-        $response->header('authorization', $currentUser->authorizationHeader());
-        $response->header('x-cc', \az\settings\CLIENT_KEY);
-        if(array_key_exists('x-saved-token', $request->header)) {
-            // copy back impersonation token
-            $response->header('x-saved-token', $request->header['x-saved-token']);
-        }
     }
     if(preg_match('#^/internal/#', $path, $m)){
         if(@$request->header['internal-key'] !== \az\settings\INTERNAL_KEY) {
@@ -151,7 +145,7 @@ $http->on('request', function ($request, $response) use($http) {
                     $api_reg = new API_ITEMS("$fpath");
                     $vars = $api_reg->helpers();
                 }
-                safe_require_once($fpath, $vars);
+                \az\safe_require_once($fpath, $vars);
                 $route = route_defined("$fpath$api_index");
                 if($route) goto found;
                 error_log("$path.$suffix is not a route target");
@@ -167,7 +161,7 @@ $http->on('request', function ($request, $response) use($http) {
     }
     found:
 
-    $ctx = Swoole\Coroutine::getContext();
+    $ctx = \Swoole\Coroutine::getContext();
     $ctx['request'] = $request;
     $ctx['response'] = $response;
 
@@ -201,7 +195,7 @@ $http->on('request', function ($request, $response) use($http) {
 //     global $inotify_fd;
 
 //     if($inotify_fd) {
-//         Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
+//         \Swoole\Event::add($inotify_fd, function ($fd) use ($http) {
 //             // Read the events to clear the buffer
 //             $events = inotify_read($fd); 
 //             if ($events) {

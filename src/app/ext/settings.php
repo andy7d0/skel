@@ -1,5 +1,31 @@
 <?php namespace az\settings;
 
+const DATABASES = [
+	'main' => [
+		'server' => 'pgsql:host=main_bouncer port=6432 dbname=main_db'
+		, 'lib' => __ROOTDIR__.'/az4/db-driver-pg.php'
+		, 'factory' => 'az\db\driver\PDO\php\connect'
+		, 'init_mode' => 'transaction'
+												  // conection (re)initialisation mode
+												  // when user-based role adjustment used
+												  // we need redo it when connection reused
+												  // also, if bouncer come to play
+												  // it internally reuse the same real connection
+												  // for each transaction, so we reset it
+				, 'user' => 'anonymous'       
+												  // database username
+												  // if omited, current process-owner username is used
+				                                  //   it can be kerberos or peer authenticated
+												  // if is null, current user name (and password) used 
+												  //   if fallback_user set (and user is null)
+												  //   , it is used when connection failed
+				, 'pass' => '1'
+				                                  // database pass
+				                                  // TODO: load passwords from protected storage
+	]
+];
+
+
 const SERVER_PORT = 9580;
 const MAX_COROUTINE = 3000;
 const WORKER_NUM = 2; //TODO: dev/prod
@@ -19,7 +45,7 @@ const AUTHENTICATED_URLS = 'user|semistaff|staff|sysop|admin';
 const AUTH_TTL = 5*60; // 5m
 const COOKIE_KEY = 'D2fq9No8pzsTb12nRx';
 const INTERNAL_KEY = '6677198927423874297428937429874984728987324729791741969833734632682685268e7537189719719001';
-const CLIENT_KEY = "?313142423424532525342525253452352389099809808093420?";
+// const CLIENT_KEY = "?313142423424532525342525253452352389099809808093420?";
 
 
 const GLOBAL_PRIV = <<<K
@@ -67,6 +93,7 @@ K;
 
 
 function login($login, $pass, &$ret = null) {
+	\az\safe_require_once('db-driver-base.php');
 	// we hold access_db connection
 	// at it is jush a function call 
 	//  we can use bouncer and share connection in transaction/statement mode! 
@@ -103,8 +130,8 @@ function login($login, $pass, &$ret = null) {
 		$info = \az\access\scram_decode($enc,base64_decode($iv),$key);
 		$info = @json_decode($info);
 		//var_dump($info);
-		// info: {personid, sysrole, encoded_id, ext, int} here
-		if(@$info->magic !== hash('sha256', @$info->encoded_id))
+		// info: {personid, sysrole, person_access_tag, ext, int} here
+		if(@$info->magic !== hash('sha256', @$info->person_access_tag))
 			throw new \Exception('no decoded');
 	} else {
 		throw new \Exception('not a token');
@@ -113,7 +140,11 @@ function login($login, $pass, &$ret = null) {
 	// client uses $info transparently, so, each field required
 
 	// add token to login info
-	return (array)$info;
+	$acces = (array)$info;
+	$acces['db_login'] = $login; 
+	$acces['db_pass'] = $pass; 
+	return $acces;
+
 	/*
 		when login returns to the client
 		it set (pseudo)cookie with auth token
@@ -135,20 +166,20 @@ function login($login, $pass, &$ret = null) {
 }
 
 function resetConnection($conn, $currentUser){
-	$login = $currentUser?->effectiveLogin(); // used possible impersonated id
+	$login = $currentUser?->login(); // used possible impersonated id
 
 	if($login){
 		$personid = $currentUser?->personId();
-		$encoded_id = $currentUser?->personEncodedId();
+		$person_access_tag = $currentUser?->accessTag();
 
 		$version = \az\settings\db_version(); // global version
 		$ok = $conn->executeWithParams("SELECT public.reset_connection(?,?,?,?)"
-			,[$login, $personid, $encoded_id, $version]
+			,[$login, $personid, $person_access_tag, $version]
 			,['cmd'=>'reset-logged #'.$conn->connId])
 			->fetchColumn();
 		if($ok) { 
-			if($login !== $currentUser?->login()) {
-				// impersonated
+			if($login !== $currentUser?->dbLogin()) {
+				// impersonated, set it's role as db role
 				$sysrole = $currentUser?->sysrole();
 				$conn->executeWithParams("SET LOCAL ROLE $sysrole");
 			}
@@ -164,3 +195,15 @@ function resetConnection($conn, $currentUser){
 		,['cmd'=>'reset-anon #'.$conn->connId]);
 }
 
+function impersonate($target, $currentUser) {
+	$db = \az\db\driver\connectAsCurrentUserPooled('main'); 
+	
+	$info = $db->executeWithParams("SELECT user_staff.get_uinfo_somebody(?)", [$target], ['cmd'=>'login'])
+			->fetchColumn();
+	if(!$info) return;
+
+	$acces = (array)$info;
+	$acces['db_login'] = $currentUser->dbLogin(); 
+	$acces['db_pass'] = $currentUser->dbPass(); 
+	return $acces;
+}

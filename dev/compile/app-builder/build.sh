@@ -57,7 +57,8 @@ do
 
 	{
 	cat <<- 'MG'
-		set client_min_messages = 'notice'; DO $ALTER_DB_DO_COMMAND$
+		set client_min_messages = 'notice'; 
+		DO $ALTER_DB_DO_COMMAND$
 		DECLARE
 			__FILE__ text;
 			__START_LINE__ int;

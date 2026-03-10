@@ -9,6 +9,8 @@ import {mtest} from './tests/form-test'
 
 import {Date} from 'azlib/components/controls'
 
+import {api_post} from 'azlib/api.mjs'
+
 
 const ExtApp = lazy(()=> import(
     /* webpackChunkName: "ext/app" */
@@ -23,12 +25,8 @@ const IntApp = lazy(()=> import(
 function DefApp() {
   return (
     <div className="App">
-      <div>
-        <a href="https://reactjs.org" target="_blank" rel="noreferrer">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
       <h1>Rspack + React!</h1>
+      <Link to="login">login</Link>
       <div className="card">
         <p>
           Edit <code>src/client/App.jsx</code> and save to test HMR
@@ -38,9 +36,6 @@ function DefApp() {
           <Link to="int/int_app">int</Link>
         </p>
       </div>
-      <p className="read-the-docs">
-        Click on the Rspack and React logos to learn more
-      </p>
 
       <p>
         <aligned-button align='center' onClick={async ()=>{
@@ -53,7 +48,6 @@ function DefApp() {
       <div>
       <Date />
       </div>
-      88888
     </div>
   );
 }
@@ -72,6 +66,7 @@ function App() {
 function UserApp() {
   return <Routes>
     <Route path="/" element={<DefApp/>} />
+    <Route path="/login" element={<LoginPage/>} />
     <Route path="int/*" element={
         <Suspense fallback={<div>Loading app...</div>}>
           <IntApp />
@@ -83,6 +78,31 @@ function UserApp() {
       </Suspense>
     }/>
   </Routes>
+}
+
+function LoginPage() {
+  return <div>
+    <form onSubmit={async (event)=> {
+      event.preventDefault();
+      const data = new FormData(event.target);
+      const obj = Object.fromEntries(data.entries())
+      const uinfo = await login(obj)
+    }} >
+    Login: <input name="login" />
+    <br/>
+    Pass: <input name="pass" type="password" />
+    <br/>
+    <button>OK</button>
+    </form>
+  </div>
+}
+
+async function login(form) {
+  const r = await api_post('/app/ext/anonymous/login',form);
+  if(!r) {
+    console.log('auth error');
+  }
+  console.log(r.authorization, r.info);
 }
 
 export default App;

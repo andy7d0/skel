@@ -16,5 +16,5 @@ fi
 
 rspack build
 
-./dev/scripts/compose run --remove-orphans  --rm -q ext_app ./build.sh
+./dev/scripts/compose.sh run --remove-orphans  --rm -q app_builder ./build.sh
 

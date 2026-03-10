@@ -11,8 +11,8 @@
     "up": "./dev/scripts/compose.sh up",
     "init-project": "./dev/scripts/init-project.sh",
     "build": "./dev/scripts/build.sh",
-    "go-ext": "./dev/scripts/compose.sh run --remove-orphans  --rm -q --entrypoint go ext_app",
-    "php-ext": "./dev/scripts/compose.sh run --remove-orphans  --rm -q ext_app"
+    "go": "./dev/scripts/compose.sh run --remove-orphans  --rm -q --entrypoint go ext",
+    "php": "./dev/scripts/compose.sh run --remove-orphans  --rm -q"
   },
   "dependencies": {
     "@swc/helpers": "^0.5.18",

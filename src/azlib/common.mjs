@@ -117,7 +117,7 @@ export async function getLoggedState() {
 export async function getAPIparams() {
   const at = await getKV('auth-token', await customStore()) // use local (per branch) store
   const peer = getPeerCode()
-  return { integrity: sha256.hmac(at, peer )
+  return { integrity: at ? sha256.hmac(at, peer ) : ''
           , token: at
           , peer: peer
         }
@@ -128,6 +128,10 @@ export async function setAuthToken(token) {
     // TODO: boadcast auth-token
 }
 
+
+export async function setSavedToken(token) {
+  await setKV('saved-token', token, await customStore())  
+}
 
 export function isLocalServer() {
   return hostname === '127.1.2.1';  // hardcoded, KISS

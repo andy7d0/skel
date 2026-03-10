@@ -153,12 +153,13 @@ export async function api_fetch_json(url, values, params) {
 
  	if(!params || params.method === 'GET' || params.method === 'HEAD') {
  		const getParams =  JsonToParams(values)
- 		url.search = getParams
- 		headers["X-SA"] = enc(ts, getParams, APIparams.integrity)
+ 		// url.search = getParams
+ 		url = "$url?getParams"
+ 		if( APIparams.integrity ) headers["X-SA"] = enc(ts, getParams, APIparams.integrity)
  	} else {
  		params.body = JSON.stringify(values);
  		headers['Content-Type'] =  "application/json";
- 		headers["X-SA"] = enc(ts, params.body, APIparams.integrity)
+ 		if( APIparams.integrity ) headers["X-SA"] = enc(ts, params.body, APIparams.integrity)
  	}
 
  	await seqPromise;
@@ -180,6 +181,8 @@ export async function api_fetch_json(url, values, params) {
 
 		if(r.headers.has('X-Auth-Token'))
 			await setAuthToken(r.headers.get('X-Auth-Token'))
+		if(r.headers.has('X-Cc')){
+		}
 	} else {
 		// throw!!!!
 		throw r

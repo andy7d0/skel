@@ -1,6 +1,6 @@
 <?php namespace az\access;
 
-const magic =  '00-aceess-4';
+const magic =  '00-access-4';
 
 
 class AutorizedUser {
@@ -19,16 +19,17 @@ class AutorizedUser {
 	function all_roles() { return @$this->roles ?? []; }
 
 	// next are always effective
-	function effectiveLogin() { return @$this->state['effective_login']; }
-	function personId() { return @$this->state['personid']; }
-	function personEncodedId() { return @$this->state['encoded_id']; }
 	function login() { return @$this->state['login']; }
-	function pass() { return @$this->state['pass']; }
+	function personId() { return @$this->state['personid']; }
+	function accessTag() { return @$this->state['person_access_tag']; }
+	function sysrole() { return @$this->state['sysrole']; }
+	function dbLogin() { return @$this->state['db_login']; }
+	function dbPass() { return @$this->state['db_pass']; }
 
-	function authorizationHeader() {
+	static function authorizationHeader($state) {
 		//error_log("ST".var_export(self::$state,true));
 
-		$enc = encode(serialize($this->state));
+		$enc = encode(serialize($state));
 		return "Bearer: $enc";
 	}
 }
@@ -50,10 +51,8 @@ function loginUser($request) {
 				return new AutorizedUser($authorization);
 			} else {
 				// nice auth, but too late
-				$authorization = \az\settings\login($authorization['login'], $authorization['pass']);
+				$authorization = \az\settings\login($authorization['db_login'], $authorization['db_pass']);
 				if($authorization) {
-					$authorization['login'] = $authorization['login'];
-					$authorization['pass'] = $authorization['pass'];
 					// successfully reautorized after auth timeout
 					return new AutorizedUser($authorization);
 				}
@@ -126,17 +125,30 @@ function pubkey_modulus() {
 
 
 function check_headers($headers, $raw_values) {
-	if( !array_key_exists('x-peer',. $headers)) throw new \ResourceForbidden('!peer');
-	if( !array_key_exists('x-ts',. $headers)) throw new \ResourceForbidden('!ts');
-	if( !array_key_exists('x-sa',. $headers)) throw new \ResourceForbidden('!sa');
+	if( !array_key_exists('x-peer', $headers)) throw new \ResourceForbidden('!peer');
+	if( !array_key_exists('x-ts', $headers)) throw new \ResourceForbidden('!ts');
+	if( !array_key_exists('x-sa', $headers)) throw new \ResourceForbidden('!sa');
 	if( abs(time() - $headers['x-ts'] ) > 10 ) {
 		// do nothing for now
 	}
 
-	$h = hash('sha256', $headers['x-peer'] . \az\settings\CLIENT_KEY . $raw_values);
+	$h = hash_hmac('sha256', $raw_values, $headers['x-ts'] . ':' .
+			hash_hmac('sha256', $headers['authorization'], $headers['x-peer'] )
+		);
 
 	if($h !== $headers['x-sa']) throw new \ResourceForbidden('args');
 }
 
+function impersonate($target) {
+	$ctx = \Swoole\Coroutine::getContext();
+	$currentUser = @$ctx['request']->server['current_user'];
+	if(!$currentUser) return;
+	if(!$currentUser->has_role('user_staff')) return;
 
+	$impAuth = \az\settings\impersonate($target, $currentUser);
+
+	if(!$impAuth) return;
+
+	return $impAuth;
+}
 

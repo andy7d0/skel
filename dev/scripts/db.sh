@@ -59,4 +59,8 @@ psql)
 	./dev/scripts/compose.sh exec $DB_NAME psql -d $DB_NAME -U postgres "$@"
 ;;
 
+*)
+	echo 'UNKNOWN OP'
+;;
+
 esac
