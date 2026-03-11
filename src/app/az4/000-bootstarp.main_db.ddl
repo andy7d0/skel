@@ -232,28 +232,31 @@ CREATE FUNCTION utils.session_id() RETURNS text
 CREATE FUNCTION utils.scram_enc(scram text, data text) RETURNS text
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF PARALLEL SAFE
     AS $_$
-declare
-    m text[];
-    rand bytea;
-    k bytea;
-    salt text;
-    iter text;
-    enc text;
-    iv text;
-begin
-    m = regexp_match(scram,'^SCRAM-SHA-256[$]([0-9]+):([^$]+)[$]([^:]+)');
-    if m is null then
-        return null;
-    end if;
-    iter = m[1]::integer;
-    salt = m[2];
-    k = decode(m[3],'base64');
-    rand = pgc.gen_random_bytes(16); -- cbc
-    iv = encode(rand,'base64');
-    enc = encode(pgc.encrypt_iv(convert_to(data, 'utf-8'),k,rand,'aes'),'base64');
-    return concat(iter,':',salt,':',iv,':',enc);
-end
-$_$;
+    declare
+        m text[] = regexp_match(scram,'^SCRAM-SHA-256[$]([0-9]+):([^$]+)[$]([^:]+)');
+        iter text = m[1]::integer;
+        salt text = m[2];
+        key bytea = decode(m[3],'base64');
+    begin
+        if m is null then return null; end if;
+        return concat(iter -- scram iters
+                ,':',salt  -- scram salt
+                ,':',utils.simple_enc(key, data)
+                );
+    end
+    $_$;
+
+CREATE FUNCTION utils.simple_enc(key bytea, data text) RETURNS text
+    LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF PARALLEL SAFE
+    AS $_$
+    declare
+        ivlen int = 16;
+        iv bytea = pgc.gen_random_bytes(ivlen); -- cfb --aes-128
+        ciphertext_raw bytea = pgc.encrypt_iv(convert_to(data, 'utf-8'), key, iv, 'aes-cfb');
+        hmac bytea = pgc.hmac(ciphertext_raw, key,'sha256');
+    begin
+        return encode(iv||hmac||ciphertext_raw,'base64'); 
+    end$_$;
 
 CREATE FUNCTION utils.pgc_text_compare(b bytea, t text, n text) RETURNS boolean
     LANGUAGE plpgsql IMMUTABLE STRICT LEAKPROOF COST 10 PARALLEL SAFE
@@ -292,6 +295,8 @@ CREATE TABLE private.logins (
 ALTER TABLE ONLY private.logins ALTER COLUMN login SET STORAGE PLAIN;
 ALTER TABLE ONLY private.logins ALTER COLUMN phash2 SET STORAGE PLAIN;
 ALTER TABLE ONLY private.logins ALTER COLUMN sysrole SET STORAGE PLAIN;
+
+ALTER TABLE ONLY private.logins ADD COLUMN tmp text; 
 
 CREATE TABLE private.registrations (
     hash character varying(500) NOT NULL collate "C",
@@ -355,21 +360,45 @@ $$;
  *  so only who knows user's pass can really access the info
  *  returned info contains access tag
  *  enverybody who knows it can represent itself as the user
+ * 
+ *  to decode somebody should know 
+ *  1) access_tag (this is direct case)
+ *  or
+ *  2) login+pass => scram_decode etag with login+pass => access_tag
  */
 
-CREATE FUNCTION public.get_uinfo(p_login text) RETURNS text 
-    LANGUAGE sql STABLE STRICT SECURITY DEFINER LEAKPROOF
-    AS $$select utils.scram_enc(
-    phash2, 
-    user_user.get_uinfo(person)::text) 
-    from private.logins where login = p_login
-$$;
+CREATE FUNCTION public.get_uinfo(p_login text) RETURNS json
+    LANGUAGE plpgsql STABLE STRICT SECURITY DEFINER LEAKPROOF
+    AS $$
+    declare
+        info jsonb;
+        scram text;
+        personTag text;
+    begin
+        select user_user.get_uinfo(person), phash2
+        into info, scram
+        from private.logins 
+        where login = p_login;
+
+        personTag = (select private.person_tag(p_login,info['personid']::text));
+
+        return json_object(
+                'ptag': utils.scram_enc(scram, personTag) -- base 64
+                , 'encoded':
+                    utils.simple_enc(
+                        pgc.hmac(personTag, 'etag-001','sha256'), -- hex/bin
+                        info::text 
+                    ) -- base64 encoded
+               );
+    end$$;
 
 
 /**
  *  this function called securely
  *  and internally enshures that only an legitimate user or super 
  *  gets the info 
+ *  anyway returned value client-side properties only
+ *  for example, no person_access_tag here
  */
 CREATE FUNCTION user_user.get_uinfo(p_person bigint) RETURNS jsonb
     LANGUAGE plpgsql STABLE STRICT SECURITY DEFINER LEAKPROOF
@@ -384,15 +413,13 @@ begin
     end if;
     return (select
         json_object(
-            'magic': encode(pgc.digest(t.tag, 'sha256'), 'hex')
-            , 'login': p.login
+            'login': p.login
             , 'personid': p.person
             , 'sysrole': p.sysrole
-            , 'person_access_tag': t.tag
+            , 'tmp': tmp
         )
         from private.logins p
-            , lateral (select private.person_tag(p.login,p.person::text) as tag ) t
-         where person = p_person);
+        where person = p_person);
 end;$$;
 
 CREATE FUNCTION user_staff.get_uinfo_somebody(p_person bigint) RETURNS jsonb

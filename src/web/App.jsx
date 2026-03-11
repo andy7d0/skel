@@ -93,13 +93,14 @@ function LoginPage() {
       setErr(null)
       const data = new FormData(event.target);
       const obj = Object.fromEntries(data.entries())
-      const uinfo = await login(()=>api_post('/app/ext/anonymous/login',obj))
-      if(typeof uinfo === 'string') {
-        setErr(uinfo)
-        return;
+      try {
+        const auth = await login(()=>api_post('/app/login',obj))
+        await setAuthToken(auth);
+        navigate('/')
+      } catch(error) {
+          console.log(error)
+          if(typeof error === 'string') setErr(error)        
       }
-      await setAuthToken(uinfo)
-      navigate('/')
     }} >
     Login: <input name="login" />
     <br/>
@@ -116,15 +117,15 @@ const Uctx = createContext({})
 const empty = {}
 
 function UinfoContext({children}) {
-  const [uinfo, setUinfo] = useState()
+  const [auth, setAuth] = useState()
   useEffect(()=>{
-    const prev = subscribe('uinfo', setUinfo)
-    return () => subscribe('uinfo', prev)
-  },[setUinfo])
+    const prev = subscribe('auth', setAuth)
+    return () => subscribe('auth', prev)
+  },[setAuth])
   useEffect(()=>{
-    getLoggedState().then(st=>{broadcast('uinfo', st)})
-  }, [setUinfo])
-  return <Uctx value={uinfo?.info??empty}>{children}</Uctx>
+    getLoggedState().then(st=>{broadcast('auth', st)})
+  }, [])
+  return <Uctx value={auth?.uinfo??empty}>{children}</Uctx>
 }
 
 export function useUinfo() {

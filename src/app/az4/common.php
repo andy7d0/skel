@@ -27,6 +27,12 @@ function critical_section(callable $func) {
     }
 }
 
+function json_decode_null($value)
+{
+	return $value === null? null : json_decode($value);
+}
+
+
 class KeyedLRUItem {
 	function __construct(public $item, public string $key
 		, public ?object $prev, public ?object $next

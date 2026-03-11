@@ -1,14 +1,11 @@
 <?php namespace az\access;
 
-const magic =  '00-access-4';
-
-
 class AutorizedUser {
 	private array $roles = [];
 
-	function __construct(private array $state)
+	function __construct(private object $uinfo, private object $sinfo)
 	{	
-		$this->roles = \az\settings\roles($state);
+		$this->roles = \az\settings\roles($uinfo);
 	}
 
 	function has_role(...$role) {
@@ -19,48 +16,54 @@ class AutorizedUser {
 	function all_roles() { return @$this->roles ?? []; }
 
 	// next are always effective
-	function login() { return @$this->state['login']; }
-	function personId() { return @$this->state['personid']; }
-	function accessTag() { return @$this->state['person_access_tag']; }
-	function sysrole() { return @$this->state['sysrole']; }
-	function dbLogin() { return @$this->state['db_login']; }
-	function dbPass() { return @$this->state['db_pass']; }
-
-	static function authorizationHeader($state) {
-		//error_log("ST".var_export(self::$state,true));
-
-		$enc = encode(serialize($state));
-		return "Bearer: $enc";
-	}
+	function login() { return @$this->uinfo->login; }
+	function personId() { return @$this->uinfo->personid; }
+	function sysrole() { return @$this->uinfo->sysrole; }
+	function accessTag() { return @$this->sinfo->pt; }
+	function dbLogin() { return @$this->sinfo->dl; }
+	function dbPass() { return @$this->sinfo->dp; }
 }
 
-function loginUser($request) {
+function loginOnlineUser($request, $response) {
 	$authorization = @$request->header['authorization'];
 	if($authorization) {
-		if(preg_match('/^Bearer:\s*(.*)/',$authorization, $m)) {
-			$authorization = @unserialize(decode($m[1]));
+		if(preg_match('/^Bearer:\s*(.*):(.*)/',$authorization, $m)) {
+			$uinfo = json_decode(base64_decode($m[1]));
+			$sinfo = json_decode(\az\access\decode($m[2]));
 		} else {
-			$authorization = null;
+			$sinfo = null;
 		}
-		if($authorization
-			&& @$authorization['magic'] === magic
-			&& @$authorization['peer'] === @$request->header['x-peer'])
+		if($sinfo
+			&& @$sinfo->peer === @$request->header['x-peer'])
 		{
-			if(time() < $authorization['stamp'] + \az\settings\AUTH_TT) {
+			if(time() < $sinfo->stamp + \az\settings\AUTH_TT) {
 				// successfully autorized shortly
-				return new AutorizedUser($authorization);
+				return new AutorizedUser($uinfo, $sinfo);
 			} else {
 				// nice auth, but too late
-				$authorization = \az\settings\login($authorization['db_login'], $authorization['db_pass']);
-				if($authorization) {
+				if(\az\settings\login($sinfo->dl, $sinfo->dp, $uinfo_str, $personTag)) {
+					// TODO: compare pt and $personTag
+			        $response->header('authorization', genAuthHeader($uinfo_str, $sinfo));
 					// successfully reautorized after auth timeout
-					return new AutorizedUser($authorization);
+					return new AutorizedUser(json_decode($uinfo_str), $sinfo);
 				}
 			}
 		}
 	}
 	// not logged in
 	throw new \ResourceForbidden('login');
+}
+
+function genAuthHeader($uinfo_str, $sinfo) {
+	$ctx = \getRequestContext();
+	$request = $ctx['request'];
+	$sinfo->stamp = time();
+	$sinfo->peer = $request->header['x-peer'];
+	return "Bearer: "
+			.base64_encode($uinfo_str)
+			.':'.
+			\az\access\encode(json_encode($sinfo))
+			;
 }
 
 const cipher = "aes-128-cfb";
@@ -70,7 +73,7 @@ function encode($string,$key = null) {
 	if(!$key) $key = \az\settings\COOKIE_KEY;
 	$ivlen = openssl_cipher_iv_length(cipher);
 	$iv = openssl_random_pseudo_bytes($ivlen);
-	$ciphertext_raw = openssl_encrypt($string, cipher, $key, $options=OPENSSL_RAW_DATA, $iv);
+	$ciphertext_raw = openssl_encrypt($string, cipher, $key, OPENSSL_RAW_DATA, $iv);
 	$hmac = hash_hmac(hmac, $ciphertext_raw, $key, $as_binary=true);
 	return base64_encode( $iv.$hmac.$ciphertext_raw );
 }
@@ -82,7 +85,7 @@ function decode($string,$key = null) {
 	$iv = substr($c, 0, $ivlen);
 	$hmac = substr($c, $ivlen, hmac_lev);
 	$ciphertext_raw = substr($c, $ivlen+hmac_lev);
-	$original_plaintext = @openssl_decrypt($ciphertext_raw, cipher, $key, $options=OPENSSL_RAW_DATA, $iv);
+	$original_plaintext = @openssl_decrypt($ciphertext_raw, cipher, $key, OPENSSL_RAW_DATA, $iv);
 	$calcmac = hash_hmac(hmac, $ciphertext_raw, $key, $as_binary=true);
 	if (@hash_equals($hmac, $calcmac))// timing attack safe comparison
 	{
@@ -100,12 +103,20 @@ function scram_storage_key($iterations, $salt_64, $pass) {
 	return $storageKey;
 }
 
-function scram_decode($string, $iv, $scram_key) {
+function decode256($string,$key) {
 	$c = base64_decode($string);
-	//var_dump(strlen($c));
-	return @openssl_decrypt($c, 'aes-256-cbc', $scram_key, $options=OPENSSL_RAW_DATA, $iv);
+	$ivlen = openssl_cipher_iv_length('aes-256-cfb');
+	$iv = substr($c, 0, $ivlen);
+	$hmac = substr($c, $ivlen, hmac_lev);
+	$ciphertext_raw = substr($c, $ivlen+hmac_lev);
+	$original_plaintext = @openssl_decrypt($ciphertext_raw, 'aes-256-cfb', $key, OPENSSL_RAW_DATA, $iv);
+	$calcmac = hash_hmac(hmac, $ciphertext_raw, $key, $as_binary=true);
+	if (@hash_equals($hmac, $calcmac))// timing attack safe comparison
+	{
+	    return $original_plaintext;
+	}
+	error_log("decode: wrong data");
 }
-
 
 // data should be 256 bytes
 // returns signature

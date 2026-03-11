@@ -92,7 +92,7 @@ WwIDAQAB
 K;
 
 
-function login($login, $pass, &$ret = null) {
+function login($login, $pass, &$decoded, &$personTag) {
 	\az\safe_require_once('db-driver-base.php');
 	// we hold access_db connection
 	// at it is jush a function call 
@@ -124,26 +124,24 @@ function login($login, $pass, &$ret = null) {
 	$info = $db->executeWithParams("SELECT public.get_uinfo(?)", [$login], ['cmd'=>'login'])
 			->fetchColumn();
 	if(!$info) return;
-	if(preg_match('/^(\d+):([^:]+):([^:]+):(.*)/s',$info, $m)) {
-		list( , $iter, $salt, $iv, $enc ) = $m;
+
+
+
+	if(preg_match('/^(\d+):([^:]+):(.*)/s',$info->ptag, $m)) {
+		list( , $iter, $salt, $enc ) = $m;
 		$key = \az\access\scram_storage_key($iter,$salt, $pass);
-		$info = \az\access\scram_decode($enc,base64_decode($iv),$key);
-		$info = @json_decode($info);
-		//var_dump($info);
-		// info: {personid, sysrole, person_access_tag, ext, int} here
-		if(@$info->magic !== hash('sha256', @$info->person_access_tag))
-			throw new \Exception('no decoded');
+		$personTag = \az\access\decode256($enc, $key);
+		if(!$personTag) throw new \Exception('ptag decode error');
+		$uinfoKey = hash_hmac('sha256', $personTag, 'etag-001', true); // bin 
+		$decoded = \az\access\decode256($info->encoded, $uinfoKey);
+		error_log($decoded);
+		if(!$decoded) throw new \Exception('info decode error');
+		return true;
 	} else {
 		throw new \Exception('not a token');
 	}
 
 	// client uses $info transparently, so, each field required
-
-	// add token to login info
-	$acces = (array)$info;
-	$acces['db_login'] = $login; 
-	$acces['db_pass'] = $pass; 
-	return $acces;
 
 	/*
 		when login returns to the client
@@ -160,7 +158,7 @@ function login($login, $pass, &$ret = null) {
 	} catch(\Exception $e) {
 		//FIXME: throw database error
 		//       but skip 'no acces' 
-		if (isset($ret)) $ret= $e->getCode()." # ".$e->getMessage()." ";
+		// $e->getCode()." # ".$e->getMessage()." ";
 		//print_r($e->getCode()." # ".$e->getMessage());
 	}
 }
@@ -206,4 +204,16 @@ function impersonate($target, $currentUser) {
 	$acces['db_login'] = $currentUser->dbLogin(); 
 	$acces['db_pass'] = $currentUser->dbPass(); 
 	return $acces;
+}
+
+function roles($uinfo) {
+	$roles = [];
+	switch(@$uinfo->sysrole) {
+		case 'admin': $roles['admin'] = true;
+		case 'sysop': $roles['sysop'] = true;
+		case 'staff': $roles['staff'] = true;
+		case 'semistaff': $roles['semistaff'] = true;
+		default: $roles['user'] = true;
+	}
+	return $roles;	
 }

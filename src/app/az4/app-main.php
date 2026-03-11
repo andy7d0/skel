@@ -5,11 +5,19 @@ require_once 'settings.php';
 
 use \Swoole\Coroutine;
 
+
+//NOTE: cli code can return predefined global array here
+// with or without Swoole
 function getRequestContext() {
     return \Swoole\Coroutine::getContext();
 }
+
+//NOTE: cli code should somehow get login/pass
+// and reset connection using them
+// or act as pedifined user privileged or not
+// almost always there is no 'real' user for cli scripts!  
     
-//TODO: @include __ROOT__.'/vendor/autoload.php';
+//TODO: @include __ROOTDIR__.'/vendor/autoload.php';
 
 //TODO:
 // define('APP_MODE',
@@ -105,7 +113,7 @@ $http->on('request', function ($request, $response) use($http) {
         // TODO: auth
         \az\access\check_headers( $request->header, @$request->get ?: $request->getContent() );
 
-        $currentUser = \az\access\loginUser($request);
+        $currentUser = \az\access\loginOnlineUser($request, $response);
         $request->server['current_user'] = $currentUser;
     }
     if(preg_match('#^/internal/#', $path, $m)){

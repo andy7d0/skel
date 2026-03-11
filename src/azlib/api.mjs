@@ -179,10 +179,8 @@ export async function api_fetch_json(url, values, params) {
 	    			, (new Date(r.headers.get('x-local-time'))).valueOf()	
 	    			);
 
-		if(r.headers.has('X-Auth-Token'))
-			await setAuthToken(r.headers.get('X-Auth-Token'))
-		if(r.headers.has('X-Cc')){
-		}
+		if(r.headers.has('Authorization')) await setAuthToken(r.headers.get('Authorization'))
+		if(r.headers.has('X-Cc')){} //TODO
 	} else {
 		// throw!!!!
 		throw r

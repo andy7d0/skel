@@ -176,6 +176,19 @@ async function cache_upstream_version_dummy(r) {
 	else r.return(404,"Not Found")
 }
 
+async function cached_login(r) {
+	let ret = await r.subrequest(`/app/ext/anonymous/login/`, {
+        method: 'POST',
+        body: r.requestBody // Use the body of the original request
+   })
+	let dict = ngx.shared['uinfo']
+	const jsResp = JSON.parse(ret.responseText);
+	const key = jsResp.subscription;
+	const data = JSON.stringify(jsResp.info);
+	dict.set(key, jsResp.version);
+	dict.set(`${key}.data`, ret.responseText);
+}
+
 function tick(_s) {
 }
 
@@ -184,5 +197,6 @@ export default { test, index_and_bundle
 , cache_test
 , cache_purge_local
 , cache_upstream_version_dummy
+, cached_login
 , tick
 }

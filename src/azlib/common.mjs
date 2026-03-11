@@ -1,5 +1,5 @@
 import {sha256}  from  'js-sha256';
-import {bytesToBase64URL} from './b64.mjs';
+import {bytesToBase64URL, base64decode} from './b64.mjs';
 
 import { get as getKV, set as setKV, del as delKV, update as updateKV } from 'idb-keyval';
 import {openDB, unwrap} from 'idb';
@@ -80,44 +80,54 @@ export async function login(func) {
   const r = await func();
   if(!r) {
     console.log('auth error');
-    return 'auth error';
+    throw 'auth error';
   }
-  console.log(r.authorization, r.info);
   return r;
 }
 
 export async function logout(navigate){
   await delKV('login-state', await customStore())
-  broadcast('uinfo', null)
+  broadcast('auth', null)
   navigate('/')
 }
 
 export async function getLoggedState() {
-  let at = await getKV('login-state', await customStore()) // use local (per branch) store
-  // logged, so return logout function!
-  // if(at)
-  //   return {
-  //     subscriptionKey: '----------'
-  //     , alien: !!at.saved
-  //     , uinfo: at.info 
-  //     , logout
-  //   };
-  return at;
-  // return null
+  return await getKV('login-state', await customStore()) // use local (per branch) store
 }
 
 export async function getAPIparams() {
   const at = await getKV('login-state', await customStore()) // use local (per branch) store
   const peer = getPeerCode()
-  return { integrity: at ? sha256.hmac(at.authorization, peer ) : ''
+  return { integrity: at && sha256.hmac(at.authorization, peer ) || ''
           , token: at?.authorization
           , peer: peer
         }
 }
 
-export async function setAuthToken(state) {
-  await setKV('login-state', state, await customStore())
-  broadcast('uinfo', state)
+
+function roles($uinfo) {
+  const $roles = [];
+  switch($uinfo.sysrole) {
+    case 'admin': $roles['admin'] = true;
+    case 'sysop': $roles['sysop'] = true;
+    case 'staff': $roles['staff'] = true;
+    case 'semistaff': $roles['semistaff'] = true;
+    default: $roles['user'] = true;
+  }
+  return $roles;  
+}
+/**
+ *  state:
+ *    subscription: key to subscribe on server
+ *    authorization: header to send with requests
+ */
+export async function setAuthToken(auth) {
+  let [,uinfo] = auth.authorization.match(/Bearer:\s*(.*):/);
+  uinfo = JSON.parse(base64decode(uinfo));
+  uinfo.roles = roles(uinfo);
+  auth.uinfo = uinfo;
+  await setKV('login-state', auth, await customStore())
+  broadcast('auth', auth)
 }
 
 
@@ -134,7 +144,7 @@ export async function setSavedToken(token) {
     const t = getKV('login-state', store)
     if(t.saved) {
       await updateKV('login-state', t.saved, store)  
-      broadcast('uinfo', t.saved)
+      broadcast('auth', t.saved)
     }
   }
 }
