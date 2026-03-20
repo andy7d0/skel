@@ -50,8 +50,7 @@ async function esia_in(r) {
 
 // body is an json-array in form [ [zone,key-in-zone,version] ... ] 
 async function cache_test(r) {
-	let body = JSON.parse(r.requestText??'{}')
-	let subscriptions = body?.subscriptions ?? [];
+	let subscriptions = JSON.parse(r.requestText??'[]')
 	//r.warn(body)
 	let dirty = false;
 	let out = []
@@ -169,6 +168,22 @@ async function cache_purge_local(r) {
 	r.return(200,'OK')
 }
 
+async function purge_by_url(r) {
+	let m
+	if(m = r.uri.match(/[/]([^/]+)[/]([^/]+)$/)) {
+		const zone = m[1];
+		const key = m[2];
+		r.warn(`PURGED ${zone}:${key}`)
+		let dict = ngx.shared[zone]
+		dict.delete(key)
+		r.return(200,'OK')
+	} else {
+		r.warn(`TRY PURGE ${r.uri}`)
+		r.return(404,'Not found')
+	}
+}
+
+
 // simulate upstream version
 async function cache_upstream_version_dummy(r) {
 	//r.warn('upstream-cache')
@@ -177,16 +192,16 @@ async function cache_upstream_version_dummy(r) {
 }
 
 async function cached_login(r) {
-	let ret = await r.subrequest(`/app/ext/anonymous/login/`, {
+	const ret = await r.subrequest(`/app/login_redirect`, {
         method: 'POST',
-        body: r.requestBody // Use the body of the original request
+        body: r.requestBuffer // Use the body of the original request
    })
-	let dict = ngx.shared['uinfo']
+	const dict = ngx.shared['user']
 	const jsResp = JSON.parse(ret.responseText);
 	const key = jsResp.subscription;
-	const data = JSON.stringify(jsResp.info);
 	dict.set(key, jsResp.version);
-	dict.set(`${key}.data`, ret.responseText);
+	dict.set(`${key}.data`, jsResp.authorization);
+	r.return(200, ret.responseText)
 }
 
 function tick(_s) {
@@ -195,7 +210,7 @@ function tick(_s) {
 export default { test, index_and_bundle 
 , esia_args, esia_in
 , cache_test
-, cache_purge_local
+, cache_purge_local, purge_by_url
 , cache_upstream_version_dummy
 , cached_login
 , tick

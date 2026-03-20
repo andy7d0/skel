@@ -29,7 +29,7 @@ function DefApp() {
   return (
     <div className="App">
       <h1>Rspack + React!</h1>
-      {uinfo.login} {uinfo.login && <button onClick={()=>{logout(navigate)}}>logout</button>}
+      {uinfo.login}+{uinfo.tmp} {uinfo.login && <button onClick={()=>{logout(navigate)}}>logout</button>}
       {!uinfo.login &&
         <Link to="login">login</Link>}
       <div className="card">
@@ -125,6 +125,11 @@ function UinfoContext({children}) {
   useEffect(()=>{
     getLoggedState().then(st=>{broadcast('auth', st)})
   }, [])
+  const id = auth?.subscription;
+  const version = auth?.version;
+  useEffect(()=>{
+    monitorResource('user', id, version)
+  },[id,version])
   return <Uctx value={auth?.uinfo??empty}>{children}</Uctx>
 }
 

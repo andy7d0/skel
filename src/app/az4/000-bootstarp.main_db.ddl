@@ -584,3 +584,26 @@ IF migration.guard_migration('admin_user') THEN
     VALUES('root', 0, private.scram_gen('1234'), 'admin');
 END IF;
 
+
+CREATE FUNCTION private.notify_user_change(p_person bigint) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$begin 
+        perform pg_notify('user',p_person::text); -- HASH???
+    end
+    $$;
+
+CREATE FUNCTION private.notify_logins_changed() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    AS $$begin
+        perform private.notify_user_change(old.person);
+        return null;
+    end$$;
+
+-- TRIGGERS:
+-- bXXX - before
+-- aXXX - after
+-- a8XX - logs
+-- a9XX - notify
+
+CREATE TRIGGER a999_notify_logins_changed AFTER UPDATE OR DELETE ON private.logins  
+    FOR EACH ROW EXECUTE FUNCTION private.notify_logins_changed();

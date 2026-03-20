@@ -4,12 +4,14 @@ require_once 'access.php';
 \define_api_route(function($login, $pass){
 	if(!\az\settings\login($login, $pass, $uinfo_str, $personTag)) // real login
 		return;
+	$uinfo = json_decode($uinfo_str);
 	return ['authorization'=> \az\access\genAuthHeader($uinfo_str,
 				(object)['pt' => $personTag
 				, 'dl' => $login
 				, 'dp' => $pass
 				])
-			, 'subscription' => \az\access\encode($login)	
+			, 'subscription' => $uinfo->personid
+			, 'version' => base64_encode(hash("sha256", $uinfo_str, true))	
 		];
 }
 ,__FILE__);

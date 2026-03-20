@@ -244,6 +244,12 @@ channel.onmessage = event => {
   listeners[event.data.code]?.(event.data, event)
 }
 
+export function broadcastOthers(code, data) {
+  const msg = {...data, code}
+  // eslint-disable-next-line  require-post-message-target-origin
+  channel.postMessage(msg)
+}
+
 export function broadcast(code, data) {
   const msg = {...data, code}
   defer(msg).then(event=>listeners[code]?.(event))
@@ -280,8 +286,36 @@ export function regsiterCheckConnection(fun) { checkConnectionCallbacks.add(fun)
 let controller = null;
                 // undefined - instant restart
                 // null - no restart
+function resetMonitor() {
+  if(controller) {
+      controller.abort();
+      controller = null;
+      check();    
+  }
+}
+
 let checkUrl = '/app/cache/monitor';
 export function setCheckUrl(url) { checkUrl = url; controller?.abort(); controller = undefined; }
+
+// TODO: share it between windows
+let monitoredSubscriptions = {}
+export function monitorResource(zone, id, version) {
+  if(version === undefined) {
+    if(monitoredSubscriptions[zone][id]!==undefined) {
+      const a = setter.object[id](undefined)(monitoredSubscriptions[zone])
+      monitoredSubscriptions[zone] = a;
+    }
+  } else { 
+    monitoredSubscriptions[zone] ??= {};
+    monitoredSubscriptions[zone][id] = version;
+  }
+  broadcast('monitor', monitoredSubscriptions)
+}
+subscribe('monitor', ms => {
+    monitoredSubscriptions = ms;
+    resetMonitor();
+})
+
 
 if(self.document) {
   const checkPeriod = 1000;
@@ -315,20 +349,34 @@ if(self.document) {
       let instant = false;
       controller = new AbortController();
       recentCheck = Date.now();
+      monitored = [];
+      for(const zone in monitoredSubscriptions) {
+        for(const key in monitoredSubscriptions[zone])
+          monitored.push([zone,key, monitoredSubscriptions[zone][key] ])
+      }
       try{
         const response = await fetch(checkUrl,{method: "POST"
-            , body:JSON.stringify([])
+            , body:JSON.stringify(monitored)
             , headers: {"Content-Type": "application/json"}
             , signal: controller.signal})
         if(!response.ok) {
             throw new Error(`Monitor Response status: ${response.status}`);
-          }
-        const stream = response.body.pipeThrough(new TextDecoderStream());
-        for await (const value of stream) {
-          console.log(`cache monitor: ${value}`);
-          lastSuccessfullCheck = Date.now();
         }
-        console.log(`cache monitor end`);
+        if(response.status === 412) {
+          // dirty cache
+          const info = await response.json()
+          for(const c of info) {
+
+          }
+
+        } else {
+          const stream = response.body.pipeThrough(new TextDecoderStream());
+          for await (const value of stream) {
+            console.log(`cache monitor: ${value}`);
+            lastSuccessfullCheck = Date.now();
+          }
+          console.log(`cache monitor end`);
+        }
         if(controller === undefined) instant = true;
       } catch(error) {
           console.error(error.message)
@@ -341,8 +389,7 @@ if(self.document) {
   window.addEventListener('focus', check);
   window.addEventListener('blur', () => {
     console.log('blur')
-    controller?.abort();
-    controller = null;
+    resetMonitor()
   })
 
   window.setTimeout(check,10);

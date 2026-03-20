@@ -134,7 +134,6 @@ function login($login, $pass, &$decoded, &$personTag) {
 		if(!$personTag) throw new \Exception('ptag decode error');
 		$uinfoKey = hash_hmac('sha256', $personTag, 'etag-001', true); // bin 
 		$decoded = \az\access\decode256($info->encoded, $uinfoKey);
-		error_log($decoded);
 		if(!$decoded) throw new \Exception('info decode error');
 		return true;
 	} else {

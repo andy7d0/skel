@@ -9,7 +9,7 @@
 	, "build_systems": [
 		{
 			"name": "apply-migration"
-			,"shell_cmd": "bun db migrate main_db"
+			,"shell_cmd": "~/.bun/bin/bun db migrate main_db"
 			, "working_dir": "$project_path"
 			, "file_patterns": "*.ddl,*.doctype.php,*.data.yml"
 		}

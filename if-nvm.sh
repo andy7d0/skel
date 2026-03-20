@@ -1,0 +1,6 @@
+#/bin/sh
+if [ -f $HOME/.nvm/nvm.sh ]
+then
+	. $HOME/.nvm/nvm.sh
+	"$@"
+fi

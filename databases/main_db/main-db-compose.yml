@@ -39,3 +39,23 @@ services:
     user: ${S_UID}:${S_GID}
     depends_on:
       - main_db
+
+  main_notify: # translate pl/pgsql LISTEN to HTTP HEAD/GET requests
+             # mainly to clear affected caches
+    build: 
+      context: ./databases/main_db/pg_notify_http
+      network: host
+    # image: ${S_ZONE}-ext_pg_notify
+    restart: ${RESTART_MODE}
+    volumes: 
+      - ./workarea/sockets/main_db:/var/run/postgresql
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    user: ${S_UID}:${S_GID}
+    network_mode: ${NET_MODE}
+    environment:
+      PG: "host=/var/run/postgresql user=sysuser_notify dbname=main_db"
+      WEB: "http://web:9980/notify/pg/main"
+      CHANNELS: "-n user"
+    depends_on:
+      - main_db
