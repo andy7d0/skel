@@ -20,7 +20,7 @@ $(MISSED) : FORCE
 
 %.jsx.done : %.jsx
 	@echo DO $<
-	/build/build-jsx < $< > $@
+	/build/build-jsx '<?php ' '$$⛑_[:METHOD:]([:BODY:] );' '$$⛑([:POSITIONS:]);' < $< > $@
 
 .PHONY: all FORCE
 

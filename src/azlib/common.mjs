@@ -290,7 +290,7 @@ function resetMonitor() {
   if(controller) {
       controller.abort();
       controller = null;
-      check();    
+      // check(); - call in timer    
   }
 }
 
@@ -349,7 +349,7 @@ if(self.document) {
       let instant = false;
       controller = new AbortController();
       recentCheck = Date.now();
-      monitored = [];
+      let monitored = [];
       for(const zone in monitoredSubscriptions) {
         for(const key in monitoredSubscriptions[zone])
           monitored.push([zone,key, monitoredSubscriptions[zone][key] ])
@@ -366,9 +366,9 @@ if(self.document) {
           // dirty cache
           const info = await response.json()
           for(const c of info) {
-
+            
           }
-
+          instant = true;
         } else {
           const stream = response.body.pipeThrough(new TextDecoderStream());
           for await (const value of stream) {
@@ -376,8 +376,8 @@ if(self.document) {
             lastSuccessfullCheck = Date.now();
           }
           console.log(`cache monitor end`);
+          if(controller === undefined) instant = true;
         }
-        if(controller === undefined) instant = true;
       } catch(error) {
           console.error(error.message)
       }

@@ -10,6 +10,8 @@ RUN ln -s /usr/local/bin/bash /bin/bash
 ARG S_UID
 ARG S_GID
 
+ENV LANG=C.UTF-8
+
 # Clean 
 RUN apk cache clean
 

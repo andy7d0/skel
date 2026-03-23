@@ -1,0 +1,7 @@
+[package]
+name = "build-api-entries"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+regex = "1.12.3"

@@ -10,6 +10,8 @@ import {Date} from 'azlib/components/controls'
 
 import {api_post} from 'azlib/api.mjs'
 
+import {monitorResource} from 'azlib/common.mjs'
+
 import {setAuthToken, subscribe, broadcast, getLoggedState, logout, login} from 'azlib/common.mjs'
 
 
