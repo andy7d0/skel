@@ -160,8 +160,8 @@ export function useModals() {
 		}
 	,[setOpen])
 
-	showModal.Portal = ({children})=> <>
-		{element && createPortal((element), document.getElementById('modals'))}
+	showModal.portal = (children) => <>
+		{element && createPortal(element, document.getElementById('modals'))}
 		{applyEx(children, showModal)}
 	</>
 
@@ -170,7 +170,7 @@ export function useModals() {
 
 export function WithModals({children}) {
 	const showModal = useModals()
-	return <showModal.Portal>{children}</showModal.Portal>
+	return showModal.portal(children)
 }
 
 
@@ -248,7 +248,7 @@ export function PopupModal({
 	const uRef = ref ?? triggerRef;
 	const showModal = useModals()
 
-	return <showModal.Portal>{applyProps(trigger, {ref: uRef
+	return showModal.portal(applyProps(trigger, {ref: uRef
 		, readOnly
 		, onClick:
 			async e=>{
@@ -258,7 +258,7 @@ export function PopupModal({
 					onClose?.(r)
 				}				
 			}
-		})}</showModal.Portal>
+		}))
 }
 
 export function TriggerButton({readOnly,children}) {
@@ -360,7 +360,7 @@ function ModalProcessing({operation, UI}) {
  * or
  * showModal = useModals()
  * ...
- * 	<showModal.Portal>.....onClick={()=>{showModalProcessing(showModal, operation, UI)}} </showModal.Portal>
+ * 	showModal.portal(.....onClick={()=>{showModalProcessing(showModal, operation, UI)}} )
  */
 export function showModalProcessing(showModal, operation, UI)
 {
@@ -377,7 +377,7 @@ export function GlobalModals({children}) {
 	const showModal = useModals()
 	globalShowModal = showModal;
 
-	return <showModal.Portal>{children}</showModal.Portal>
+	return showModal.portal(children)
 }
 
 
