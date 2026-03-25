@@ -48,7 +48,7 @@ export default defineConfig({
           if(req.path === '/') return next();
           if(req.path.startsWith('/app')) return next();
           if(req.path.match(/[.]/)) return next();
-          res.redirect(302, `/?${req.path}`);
+          res.redirect(302, `/?${req.originalUrl}`);
         },
       });
       return middlewares;
