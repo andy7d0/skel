@@ -108,9 +108,10 @@ $http->on('request', function ($request, $response) use($http) {
     $path = preg_replace('#^/app/(ext|int|par)/#', '/', $path);
 
     if(preg_match('#^(?<=/)'.\az\settings\AUTHENTICATED_URLS.'(?=/)#', $path, $m)){
+        \az\safe_require_once('access.php');
         // need auth
         $need_role = $m[0];
-        // TODO: auth
+
         \az\access\check_headers( $request->header, @$request->get ?: $request->getContent() );
 
         $currentUser = \az\access\loginOnlineUser($request, $response);

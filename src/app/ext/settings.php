@@ -3,7 +3,7 @@
 const DATABASES = [
 	'main' => [
 		'server' => 'pgsql:host=main_bouncer port=6432 dbname=main_db'
-		, 'lib' => __ROOTDIR__.'/az4/db-driver-pg.php'
+		, 'lib' => 'db-driver-pg.php'
 		, 'factory' => 'az\db\driver\PDO\php\connect'
 		, 'init_mode' => 'transaction'
 												  // conection (re)initialisation mode
